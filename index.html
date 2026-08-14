@@ -19,7 +19,14 @@
             stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
         </svg>
       </button>
-      <input type="file" id="fileInput" accept="audio/*" hidden />
+      <!-- Extensions are listed alongside the wildcards: some OS/browser combos fail to
+           map a file to its MIME type, which made audio files unselectable. -->
+      <input
+        type="file"
+        id="fileInput"
+        accept="audio/*,video/*,.mp3,.wav,.m4a,.aac,.flac,.ogg,.oga,.opus,.weba,.wma,.aif,.aiff,.mp4,.m4v,.mov,.webm,.mkv,.avi,.3gp,.wmv,.flv"
+        hidden
+      />
     </div>
   </header>
 

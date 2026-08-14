@@ -148,8 +148,7 @@
       try {
         this.setStatus("読み込み中...");
         const ctx = this.ensureAudioCtx();
-        const arrayBuffer = await file.arrayBuffer();
-        const decoded = await ctx.decodeAudioData(arrayBuffer);
+        const decoded = await this.decodeMediaFile(file);
 
         this.stopAll();
         this.track1Buffer = decoded;
@@ -169,10 +168,127 @@
         this.setStatus("");
       } catch (err) {
         console.error(err);
-        this.setStatus("読み込みに失敗しました");
+        this.setStatus(err && err.userMessage ? err.userMessage : "読み込みに失敗しました");
       } finally {
         el.fileInput.value = "";
       }
+    }
+
+    /**
+     * Decodes audio from an audio OR video file. decodeAudioData handles both
+     * (it pulls just the audio track out of a video container) and is near
+     * instant, so it is tried first. Containers it rejects but the media
+     * pipeline can still play — varies by browser — fall back to capturing the
+     * audio through a media element, which runs in real time.
+     */
+    async decodeMediaFile(file) {
+      const ctx = this.ensureAudioCtx();
+      try {
+        const arrayBuffer = await file.arrayBuffer();
+        return await ctx.decodeAudioData(arrayBuffer);
+      } catch (err) {
+        return await this.extractAudioViaPlayback(file);
+      }
+    }
+
+    async extractAudioViaPlayback(file) {
+      const ctx = this.ensureAudioCtx();
+      const url = URL.createObjectURL(file);
+      const media = document.createElement("video");
+      media.src = url;
+      media.playsInline = true;
+      media.preload = "auto";
+
+      let src = null;
+      let processor = null;
+      let silentGain = null;
+
+      try {
+        await new Promise((resolve, reject) => {
+          media.addEventListener("loadedmetadata", resolve, { once: true });
+          media.addEventListener("error", () => reject(this.unsupportedError()), { once: true });
+        });
+
+        const duration = media.duration;
+        if (!isFinite(duration) || duration <= 0) throw this.unsupportedError();
+
+        const sampleRate = ctx.sampleRate;
+        const capacity = Math.ceil((duration + 1) * sampleRate);
+        const left = new Float32Array(capacity);
+        const right = new Float32Array(capacity);
+        let written = 0;
+        let peak = 0;
+
+        src = ctx.createMediaElementSource(media);
+        processor = ctx.createScriptProcessor(REC_BUFFER_SIZE, 2, 2);
+        silentGain = ctx.createGain();
+        silentGain.gain.value = 0; // extraction should be inaudible
+
+        processor.onaudioprocess = (e) => {
+          const input = e.inputBuffer;
+          const inL = input.getChannelData(0);
+          const inR = input.numberOfChannels > 1 ? input.getChannelData(1) : inL;
+          const n = Math.min(inL.length, capacity - written);
+          for (let i = 0; i < n; i++) {
+            left[written + i] = inL[i];
+            right[written + i] = inR[i];
+            const a = Math.abs(inL[i]);
+            if (a > peak) peak = a;
+          }
+          written += n;
+        };
+
+        src.connect(processor);
+        processor.connect(silentGain);
+        silentGain.connect(ctx.destination);
+
+        const onProgress = () => {
+          const pct = Math.min(100, Math.round((media.currentTime / duration) * 100));
+          this.setStatus(`動画から音声を抽出中... ${pct}%（実時間かかります）`);
+        };
+        media.addEventListener("timeupdate", onProgress);
+        onProgress();
+
+        try {
+          await media.play();
+        } catch (err) {
+          throw this.userError("自動再生がブロックされました。もう一度ファイルを選び直してください");
+        }
+
+        await new Promise((resolve, reject) => {
+          media.addEventListener("ended", resolve, { once: true });
+          media.addEventListener("error", () => reject(this.unsupportedError()), { once: true });
+        });
+        media.removeEventListener("timeupdate", onProgress);
+
+        if (written === 0 || peak === 0) {
+          throw this.userError("このファイルに音声トラックが見つかりませんでした");
+        }
+
+        const out = ctx.createBuffer(2, written, sampleRate);
+        out.copyToChannel(left.subarray(0, written), 0);
+        out.copyToChannel(right.subarray(0, written), 1);
+        return out;
+      } finally {
+        if (processor) processor.onaudioprocess = null;
+        [src, processor, silentGain].forEach((node) => {
+          if (node) { try { node.disconnect(); } catch (e) {} }
+        });
+        media.pause();
+        media.removeAttribute("src");
+        media.load();
+        URL.revokeObjectURL(url);
+      }
+    }
+
+    userError(message) {
+      const err = new Error(message);
+      err.userMessage = message;
+      return err;
+    }
+
+    unsupportedError() {
+      return this.userError("この形式は再生できません。mp3/wav/m4a/mp4 などに変換してください");
     }
 
     updateTransportEnabled() {
