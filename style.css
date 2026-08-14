@@ -225,9 +225,12 @@ body {
 .btn-transport.scrub-3 { --scrub-color: #e08a2e; }
 .btn-transport.scrub-4 { --scrub-color: #d4402a; }
 
+/* Markers flank the REC button, so the freed row goes to the buttons below. */
 .rec-row {
-  display: flex;
-  justify-content: center;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 12px;
   margin: 8px 0 24px;
 }
 
@@ -235,6 +238,7 @@ body {
   position: relative;
   width: 140px;
   height: 140px;
+  z-index: 1; /* keeps the ripples above the marker buttons beside it */
 }
 
 /* Ripples spread outward from the button when the recorded track is erased. */
@@ -365,7 +369,7 @@ body {
 }
 
 .btn-small {
-  height: 66px;
+  height: 144px; /* takes over the height freed by moving the markers up */
   font-size: 15px;
   font-weight: 600;
   letter-spacing: 0.5px;
