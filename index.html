@@ -86,11 +86,14 @@
     </button>
   </div>
 
-  <div class="marker-row marker-row-2">
-    <button class="btn btn-toggle" id="track2MuteBtn" aria-label="録音トラックのミュート切り替え">
-      <span class="dot set" id="dotTrack2"></span>
-      <span>REC TRACK</span>
+  <div class="marker-row marker-row-mix">
+    <button class="btn btn-toggle btn-toggle-compact" id="track2MuteBtn" aria-label="録音トラックのミュート切り替え">
+      <span class="toggle-head"><span class="dot set" id="dotTrack2"></span>REC TRACK</span>
       <span class="toggle-state" id="track2State">ON</span>
+    </button>
+    <button class="btn btn-toggle btn-toggle-compact" id="countInBtn" aria-label="カウントイン（長押しで設定）">
+      <span class="toggle-head"><span class="dot" id="dotCountIn"></span>COUNT IN</span>
+      <span class="toggle-state" id="countInState">OFF</span>
     </button>
     <button class="btn btn-small" id="loopABBtn">A&#8644;B</button>
   </div>
@@ -134,6 +137,40 @@
   </div>
 
   <p class="status" id="statusMsg"></p>
+</div>
+
+<div class="modal-backdrop" id="countInModal" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-label="カウントイン設定">
+    <h2 class="modal-title">COUNT IN</h2>
+
+    <div class="modal-row">
+      <span class="modal-label">TEMPO</span>
+      <button class="btn btn-offset" id="bpmMinusBtn" aria-label="テンポを下げる">−</button>
+      <span class="modal-value" id="bpmValue">120 BPM</span>
+      <button class="btn btn-offset" id="bpmPlusBtn" aria-label="テンポを上げる">+</button>
+    </div>
+
+    <div class="modal-row">
+      <span class="modal-label">BEATS</span>
+      <button class="btn btn-offset" id="beatsMinusBtn" aria-label="拍数を減らす">−</button>
+      <span class="modal-value" id="beatsValue">4</span>
+      <button class="btn btn-offset" id="beatsPlusBtn" aria-label="拍数を増やす">+</button>
+    </div>
+
+    <div class="modal-row">
+      <span class="modal-label">START</span>
+      <button class="btn btn-offset" id="countStartMinusBtn" aria-label="開始位置を5ms早める">−</button>
+      <span class="modal-value" id="countStartValue">-2000 ms</span>
+      <button class="btn btn-offset" id="countStartPlusBtn" aria-label="開始位置を5ms遅らせる">+</button>
+    </div>
+
+    <p class="modal-note" id="countInSummary">先頭を基準にした位置。マイナスで先頭より前から鳴ります。</p>
+
+    <div class="modal-actions">
+      <button class="btn btn-small" id="countInPreviewBtn">PREVIEW</button>
+      <button class="btn btn-small" id="countInCloseBtn">CLOSE</button>
+    </div>
+  </div>
 </div>
 
 <script src="app.js"></script>

@@ -12,6 +12,15 @@
   const METER_PEAK_HOLD_MS = 900;
   const OFFSET_STEP = 0.005; // 5ms per press
   const OFFSET_LIMIT = 1.0; // clamp track 2 shifting to +/- 1 second
+  const COUNT_START_STEP = 0.005; // 5ms per press
+  const COUNT_START_LIMIT = 5.0; // count can begin up to 5s either side of the head
+  const BPM_MIN = 40;
+  const BPM_MAX = 300;
+  const BEATS_MIN = 1;
+  const BEATS_MAX = 16;
+  const BEEP_ACCENT_HZ = 1500; // first beat
+  const BEEP_HZ = 1000;
+  const BEEP_LEN = 0.09;
 
   const el = {
     app: document.getElementById("app"),
@@ -37,6 +46,22 @@
     markerALabel: document.getElementById("markerALabel"),
     markerBLabel: document.getElementById("markerBLabel"),
     loopABBtn: document.getElementById("loopABBtn"),
+    countInBtn: document.getElementById("countInBtn"),
+    countInState: document.getElementById("countInState"),
+    dotCountIn: document.getElementById("dotCountIn"),
+    countInModal: document.getElementById("countInModal"),
+    bpmValue: document.getElementById("bpmValue"),
+    bpmMinusBtn: document.getElementById("bpmMinusBtn"),
+    bpmPlusBtn: document.getElementById("bpmPlusBtn"),
+    beatsValue: document.getElementById("beatsValue"),
+    beatsMinusBtn: document.getElementById("beatsMinusBtn"),
+    beatsPlusBtn: document.getElementById("beatsPlusBtn"),
+    countStartValue: document.getElementById("countStartValue"),
+    countStartMinusBtn: document.getElementById("countStartMinusBtn"),
+    countStartPlusBtn: document.getElementById("countStartPlusBtn"),
+    countInSummary: document.getElementById("countInSummary"),
+    countInPreviewBtn: document.getElementById("countInPreviewBtn"),
+    countInCloseBtn: document.getElementById("countInCloseBtn"),
     track2MuteBtn: document.getElementById("track2MuteBtn"),
     track2State: document.getElementById("track2State"),
     dotTrack2: document.getElementById("dotTrack2"),
@@ -91,6 +116,12 @@
       this.monitorMuted = true; // input monitoring is off until asked for
       this.track2Gain = null;
       this.track2Muted = false; // the recorded track plays back by default
+
+      this.countInEnabled = false;
+      this.countInBpm = 120;
+      this.countInBeats = 4;
+      this.countInStart = -2.0; // timeline position of the first beep
+      this.countInVoices = []; // scheduled beeps, so they can be cancelled
 
       this.musicGain = null;
       this.guitarGain = null;
@@ -151,7 +182,24 @@
       el.loadBtn.addEventListener("click", () => el.fileInput.click());
       el.fileInput.addEventListener("change", (e) => this.onFileSelected(e));
 
-      el.playBtn.addEventListener("click", () => this.togglePlay());
+      el.playBtn.addEventListener("click", () => this.togglePlayWithCountIn());
+
+      this.bindTapHold(el.countInBtn, {
+        onTap: () => this.toggleCountIn(),
+        onHold: () => this.openCountInModal(),
+      });
+
+      this.bindRepeat(el.bpmMinusBtn, () => this.nudgeBpm(-1));
+      this.bindRepeat(el.bpmPlusBtn, () => this.nudgeBpm(1));
+      this.bindRepeat(el.beatsMinusBtn, () => this.nudgeBeats(-1));
+      this.bindRepeat(el.beatsPlusBtn, () => this.nudgeBeats(1));
+      this.bindRepeat(el.countStartMinusBtn, () => this.nudgeCountStart(-1));
+      this.bindRepeat(el.countStartPlusBtn, () => this.nudgeCountStart(1));
+      el.countInPreviewBtn.addEventListener("click", () => this.previewCountIn());
+      el.countInCloseBtn.addEventListener("click", () => this.closeCountInModal());
+      el.countInModal.addEventListener("pointerdown", (e) => {
+        if (e.target === el.countInModal) this.closeCountInModal();
+      });
 
       this.bindTapHold(el.recBtn, {
         onTap: () => this.toggleRecord(),
@@ -471,8 +519,24 @@
       const src = ctx.createBufferSource();
       src.buffer = this.track1Buffer;
       src.connect(this.musicGain);
-      src.start(0, Math.max(0, offset));
+      if (!this.startSourceAt(src, offset)) return;
       this.track1Source = src;
+    }
+
+    /**
+     * Cues a source to a timeline position. A position before zero — which the
+     * count-in uses — waits that long and then rolls from the top rather than
+     * reading behind the start of the buffer.
+     */
+    startSourceAt(src, position) {
+      const ctx = this.audioCtx;
+      if (position >= 0) {
+        if (position >= src.buffer.duration) return false; // nothing left to play
+        src.start(0, position);
+      } else {
+        src.start(ctx.currentTime + -position, 0);
+      }
+      return true;
     }
 
     /**
@@ -487,13 +551,7 @@
       src.buffer = this.track2Buffer;
       src.connect(this.track2Gain);
 
-      const readPos = offset - this.track2Offset;
-      if (readPos >= 0) {
-        if (readPos >= this.track2Buffer.duration) return; // nothing left to play
-        src.start(0, readPos);
-      } else {
-        src.start(ctx.currentTime + -readPos, 0);
-      }
+      if (!this.startSourceAt(src, offset - this.track2Offset)) return;
       this.track2Source = src;
     }
 
@@ -538,7 +596,10 @@
       }
 
       const startAt = fromSeconds !== null ? fromSeconds : this.playhead;
-      this.startOffset = Math.max(0, Math.min(startAt, this.duration));
+      // The floor is the count-in position, not 0, so the tape can roll from
+      // before the head while the beeps play.
+      const floor = Math.min(0, this.countInStart);
+      this.startOffset = Math.max(floor, Math.min(startAt, this.duration));
       this.contextStartTime = ctx.currentTime;
       this.isPlaying = true;
 
@@ -552,9 +613,27 @@
       this.updatePlayIcon();
     }
 
+    /** PLAY leads in with the count when it is switched on. */
+    togglePlayWithCountIn() {
+      if (this.isPlaying) {
+        this.pause();
+        return;
+      }
+      if (!this.track1Buffer || !this.countInEnabled) {
+        this.play();
+        return;
+      }
+
+      const ctx = this.ensureAudioCtx();
+      this.cancelCountIn();
+      this.play(this.countInStart);
+      this.scheduleCountIn(this.contextStartTime, this.startOffset);
+    }
+
     pause() {
       if (!this.isPlaying) return;
-      this.playhead = this.getPlayhead();
+      this.cancelCountIn();
+      this.playhead = Math.max(0, this.getPlayhead());
       if (this.isRecording) this.disengageRecording();
       this.isArmed = false;
       this.stopSources();
@@ -562,11 +641,6 @@
       this.stopClock();
       this.updatePlayIcon();
       this.render();
-    }
-
-    togglePlay() {
-      if (this.isPlaying) this.pause();
-      else this.play();
     }
 
     seekTo(seconds, keepPlaying) {
@@ -905,6 +979,111 @@
       }
     }
 
+    // ---------- count in ----------
+
+    toggleCountIn() {
+      this.countInEnabled = !this.countInEnabled;
+      this.setStatus(
+        this.countInEnabled ? "カウントインON - 長押しで設定" : "カウントインOFF",
+        1800
+      );
+      this.render();
+    }
+
+    /**
+     * Beeps sit at fixed timeline positions starting at countInStart, which can
+     * be negative so the count lands before a song that plays from its first
+     * sample. contextStart/timelineStart map that timeline onto the clock the
+     * transport just started against.
+     */
+    scheduleCountIn(contextStart, timelineStart) {
+      const ctx = this.audioCtx;
+      const interval = 60 / this.countInBpm;
+
+      for (let i = 0; i < this.countInBeats; i++) {
+        const at = contextStart + (this.countInStart + i * interval - timelineStart);
+        if (at < ctx.currentTime) continue; // that beat is already behind us
+        this.playBeep(at, i === 0);
+      }
+    }
+
+    playBeep(at, accent) {
+      const ctx = this.audioCtx;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc.type = "sine";
+      osc.frequency.value = accent ? BEEP_ACCENT_HZ : BEEP_HZ;
+
+      // Short envelope, so it clicks like a metronome rather than blipping.
+      gain.gain.setValueAtTime(0, at);
+      gain.gain.linearRampToValueAtTime(0.35, at + 0.004);
+      gain.gain.exponentialRampToValueAtTime(0.0008, at + BEEP_LEN);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(at);
+      osc.stop(at + BEEP_LEN + 0.02);
+
+      this.countInVoices.push(osc);
+      osc.onended = () => {
+        gain.disconnect();
+        this.countInVoices = this.countInVoices.filter((v) => v !== osc);
+      };
+    }
+
+    cancelCountIn() {
+      this.countInVoices.forEach((osc) => {
+        try { osc.stop(); } catch (e) {}
+      });
+      this.countInVoices = [];
+    }
+
+    previewCountIn() {
+      const ctx = this.ensureAudioCtx();
+      this.cancelCountIn();
+      this.scheduleCountIn(ctx.currentTime + 0.08, this.countInStart);
+    }
+
+    // ---------- count in settings ----------
+
+    openCountInModal() {
+      el.countInModal.hidden = false;
+      this.renderCountInModal();
+    }
+
+    closeCountInModal() {
+      el.countInModal.hidden = true;
+      this.cancelCountIn();
+    }
+
+    nudgeBpm(direction) {
+      this.countInBpm = clamp(this.countInBpm + direction, BPM_MIN, BPM_MAX);
+      this.renderCountInModal();
+    }
+
+    nudgeBeats(direction) {
+      this.countInBeats = clamp(this.countInBeats + direction, BEATS_MIN, BEATS_MAX);
+      this.renderCountInModal();
+    }
+
+    nudgeCountStart(direction) {
+      const next = this.countInStart + direction * COUNT_START_STEP;
+      this.countInStart = clamp(next, -COUNT_START_LIMIT, COUNT_START_LIMIT);
+      this.renderCountInModal();
+    }
+
+    renderCountInModal() {
+      const ms = Math.round(this.countInStart * 1000);
+      el.bpmValue.textContent = this.countInBpm + " BPM";
+      el.beatsValue.textContent = String(this.countInBeats);
+      el.countStartValue.textContent = (ms > 0 ? "+" : "") + ms + " ms";
+
+      const endMs = Math.round((this.countInStart + (this.countInBeats - 1) * (60 / this.countInBpm)) * 1000);
+      el.countInSummary.textContent =
+        `先頭を基準にした位置。${ms} ms から ${this.countInBeats} 拍、最後の拍は ${endMs > 0 ? "+" : ""}${endMs} ms。`;
+    }
+
     // ---------- input level meter ----------
 
     buildMeter() {
@@ -995,6 +1174,10 @@
 
       el.recMark.classList.toggle("has-data", this.track2HasData);
 
+      el.countInBtn.classList.toggle("on", this.countInEnabled);
+      el.dotCountIn.classList.toggle("set", this.countInEnabled);
+      el.countInState.textContent = this.countInEnabled ? "ON" : "OFF";
+
       // A set marker turns into its own play-from button.
       el.markerALabel.textContent = this.markerA != null ? "▶A" : "A";
       el.markerBLabel.textContent = this.markerB != null ? "▶B" : "B";
@@ -1041,12 +1224,18 @@
     }
   }
 
+  function clamp(value, min, max) {
+    return Math.max(min, Math.min(max, value));
+  }
+
   function formatTime(seconds) {
-    if (!isFinite(seconds) || seconds < 0) seconds = 0;
-    const mm = Math.floor(seconds / 60);
-    const ss = Math.floor(seconds % 60);
-    const t = Math.floor((seconds * 10) % 10);
-    return `${pad2(mm)}:${pad2(ss)}.${t}`;
+    if (!isFinite(seconds)) seconds = 0;
+    const sign = seconds < 0 ? "-" : ""; // the count-in runs before the head
+    const abs = Math.abs(seconds);
+    const mm = Math.floor(abs / 60);
+    const ss = Math.floor(abs % 60);
+    const t = Math.floor((abs * 10) % 10);
+    return `${sign}${pad2(mm)}:${pad2(ss)}.${t}`;
   }
 
   /** Maps a 0..1 amplitude onto the meter's dB scale. */

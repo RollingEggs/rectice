@@ -408,8 +408,9 @@ body {
   margin-bottom: 12px;
 }
 
-.marker-row-2 {
-  grid-template-columns: 1fr 1fr;
+/* REC TRACK and COUNT IN split what REC TRACK used to occupy. */
+.marker-row-mix {
+  grid-template-columns: 1fr 1fr 2fr;
   margin-bottom: 22px;
 }
 
@@ -524,12 +525,28 @@ body {
   min-width: 0; /* lets it share a grid row without overflowing */
 }
 
-/* Sharing a row with A⇄B, so it matches that button's height. */
-.marker-row-2 .btn-toggle {
+/* Narrow enough that the label and state have to stack. */
+.btn-toggle-compact {
   height: 72px;
-  gap: 8px;
-  padding: 0 14px;
-  letter-spacing: 1px;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 6px;
+  font-size: 10px;
+  letter-spacing: 0.5px;
+}
+
+.btn-toggle-compact .toggle-head {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+
+/* Outranks the wide layout's `margin-left: auto` regardless of rule order. */
+.btn-toggle.btn-toggle-compact .toggle-state {
+  margin-left: 0;
+  font-size: 12px;
 }
 
 .btn-toggle .toggle-state {
@@ -589,6 +606,78 @@ body {
   background: linear-gradient(180deg, #efe6d4, var(--cream));
   border: none;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(8, 6, 5, 0.72);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 10;
+}
+
+.modal-backdrop[hidden] {
+  display: none;
+}
+
+.modal {
+  width: 100%;
+  max-width: 380px;
+  background: linear-gradient(180deg, var(--bg-elev), #241e1a);
+  border-radius: 20px;
+  padding: 22px 20px;
+  box-shadow: 0 24px 50px rgba(0, 0, 0, 0.6);
+}
+
+.modal-title {
+  margin: 0 0 18px;
+  font-size: 15px;
+  letter-spacing: 3px;
+  color: var(--cream);
+  text-align: center;
+}
+
+.modal-row {
+  display: grid;
+  grid-template-columns: 62px 1fr 1.3fr 1fr;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.modal-label {
+  font-size: 11px;
+  letter-spacing: 1.5px;
+  color: var(--cream-dim);
+}
+
+.modal-value {
+  font-family: "SF Mono", "DejaVu Sans Mono", Menlo, Consolas, monospace;
+  font-size: 15px;
+  text-align: center;
+  color: var(--teal);
+}
+
+.modal-note {
+  margin: 14px 0 18px;
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--cream-dim);
+  text-align: center;
+}
+
+.modal-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.modal-actions .btn-small {
+  height: 52px;
+  font-size: 13px;
 }
 
 .status {
