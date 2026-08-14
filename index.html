@@ -146,7 +146,20 @@
     <div class="modal-row">
       <span class="modal-label">TEMPO</span>
       <button class="btn btn-offset" id="bpmMinusBtn" aria-label="テンポを下げる">−</button>
-      <span class="modal-value" id="bpmValue">120 BPM</span>
+      <span class="modal-field">
+        <input
+          class="modal-input"
+          id="bpmInput"
+          type="number"
+          inputmode="numeric"
+          min="40"
+          max="300"
+          step="1"
+          value="120"
+          aria-label="テンポ（BPM）"
+        />
+        <span class="modal-unit">BPM</span>
+      </span>
       <button class="btn btn-offset" id="bpmPlusBtn" aria-label="テンポを上げる">+</button>
     </div>
 
@@ -160,7 +173,20 @@
     <div class="modal-row">
       <span class="modal-label">START</span>
       <button class="btn btn-offset" id="countStartMinusBtn" aria-label="開始位置を5ms早める">−</button>
-      <span class="modal-value" id="countStartValue">-2000 ms</span>
+      <span class="modal-field">
+        <input
+          class="modal-input"
+          id="countStartInput"
+          type="number"
+          inputmode="numeric"
+          min="-5000"
+          max="5000"
+          step="5"
+          value="-2000"
+          aria-label="カウント開始位置（ミリ秒）"
+        />
+        <span class="modal-unit">ms</span>
+      </span>
       <button class="btn btn-offset" id="countStartPlusBtn" aria-label="開始位置を5ms遅らせる">+</button>
     </div>
 

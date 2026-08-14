@@ -51,13 +51,13 @@
     countInState: document.getElementById("countInState"),
     dotCountIn: document.getElementById("dotCountIn"),
     countInModal: document.getElementById("countInModal"),
-    bpmValue: document.getElementById("bpmValue"),
+    bpmInput: document.getElementById("bpmInput"),
     bpmMinusBtn: document.getElementById("bpmMinusBtn"),
     bpmPlusBtn: document.getElementById("bpmPlusBtn"),
     beatsValue: document.getElementById("beatsValue"),
     beatsMinusBtn: document.getElementById("beatsMinusBtn"),
     beatsPlusBtn: document.getElementById("beatsPlusBtn"),
-    countStartValue: document.getElementById("countStartValue"),
+    countStartInput: document.getElementById("countStartInput"),
     countStartMinusBtn: document.getElementById("countStartMinusBtn"),
     countStartPlusBtn: document.getElementById("countStartPlusBtn"),
     countInSummary: document.getElementById("countInSummary"),
@@ -180,8 +180,11 @@
     }
 
     bindUI() {
-      // Backstop for the iOS long-press callout on anything not covered by CSS.
-      document.addEventListener("contextmenu", (e) => e.preventDefault());
+      // Backstop for the iOS long-press callout on anything not covered by CSS,
+      // except text fields, where the menu is how you paste.
+      document.addEventListener("contextmenu", (e) => {
+        if (!e.target.closest("input")) e.preventDefault();
+      });
 
       el.loadBtn.addEventListener("click", () => el.fileInput.click());
       el.fileInput.addEventListener("change", (e) => this.onFileSelected(e));
@@ -199,6 +202,9 @@
       this.bindRepeat(el.beatsPlusBtn, () => this.nudgeBeats(1));
       this.bindRepeat(el.countStartMinusBtn, () => this.nudgeCountStart(-1));
       this.bindRepeat(el.countStartPlusBtn, () => this.nudgeCountStart(1));
+      this.bindNumberInput(el.bpmInput, () => this.commitBpm());
+      this.bindNumberInput(el.countStartInput, () => this.commitCountStart());
+
       el.countInPreviewBtn.addEventListener("click", () => this.previewCountIn());
       el.countInCloseBtn.addEventListener("click", () => this.closeCountInModal());
       el.countInModal.addEventListener("pointerdown", (e) => {
@@ -287,6 +293,15 @@
       button.addEventListener("pointerleave", cancel);
       button.addEventListener("pointercancel", cancel);
       button.addEventListener("contextmenu", (e) => e.preventDefault());
+    }
+
+    /** Commits a typed value on blur or Enter, and keeps keys off the transport. */
+    bindNumberInput(input, commit) {
+      input.addEventListener("change", commit);
+      input.addEventListener("keydown", (e) => {
+        e.stopPropagation();
+        if (e.key === "Enter") input.blur();
+      });
     }
 
     /** Fires action on press, then repeatedly while the button stays held. */
@@ -1112,7 +1127,30 @@
       this.cancelCountIn();
     }
 
+    /** Commits whatever is half-typed before a +/- press moves the value. */
+    commitPendingInput() {
+      const active = document.activeElement;
+      if (active === el.bpmInput || active === el.countStartInput) active.blur();
+    }
+
+    commitBpm() {
+      const typed = parseInt(el.bpmInput.value, 10);
+      if (Number.isFinite(typed)) this.countInBpm = clamp(typed, BPM_MIN, BPM_MAX);
+      el.bpmInput.value = String(this.countInBpm); // show the clamped value back
+      this.renderCountInModal();
+    }
+
+    commitCountStart() {
+      const typed = parseInt(el.countStartInput.value, 10);
+      if (Number.isFinite(typed)) {
+        this.countInStart = clamp(typed / 1000, -COUNT_START_LIMIT, COUNT_START_LIMIT);
+      }
+      el.countStartInput.value = String(Math.round(this.countInStart * 1000));
+      this.renderCountInModal();
+    }
+
     nudgeBpm(direction) {
+      this.commitPendingInput();
       this.countInBpm = clamp(this.countInBpm + direction, BPM_MIN, BPM_MAX);
       this.renderCountInModal();
     }
@@ -1123,6 +1161,7 @@
     }
 
     nudgeCountStart(direction) {
+      this.commitPendingInput();
       const next = this.countInStart + direction * COUNT_START_STEP;
       this.countInStart = clamp(next, -COUNT_START_LIMIT, COUNT_START_LIMIT);
       this.renderCountInModal();
@@ -1130,9 +1169,10 @@
 
     renderCountInModal() {
       const ms = Math.round(this.countInStart * 1000);
-      el.bpmValue.textContent = this.countInBpm + " BPM";
+      // Leave a field alone while it is being typed into.
+      if (document.activeElement !== el.bpmInput) el.bpmInput.value = String(this.countInBpm);
+      if (document.activeElement !== el.countStartInput) el.countStartInput.value = String(ms);
       el.beatsValue.textContent = String(this.countInBeats);
-      el.countStartValue.textContent = (ms > 0 ? "+" : "") + ms + " ms";
 
       const endMs = Math.round((this.countInStart + (this.countInBeats - 1) * (60 / this.countInBpm)) * 1000);
       el.countInSummary.textContent =

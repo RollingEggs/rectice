@@ -661,6 +661,47 @@ body {
   color: var(--teal);
 }
 
+.modal-field {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+}
+
+.modal-input {
+  width: 66px;
+  padding: 8px 4px;
+  border: 1px solid #4a4038;
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--teal);
+  font-family: "SF Mono", "DejaVu Sans Mono", Menlo, Consolas, monospace;
+  font-size: 15px;
+  text-align: center;
+  /* The app disables selection globally; typing needs it back. */
+  -webkit-user-select: text;
+  user-select: text;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.modal-input:focus {
+  outline: none;
+  border-color: var(--teal);
+}
+
+.modal-input::-webkit-outer-spin-button,
+.modal-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.modal-unit {
+  font-size: 11px;
+  letter-spacing: 1px;
+  color: var(--cream-dim);
+}
+
 .modal-note {
   margin: 14px 0 18px;
   font-size: 11px;
