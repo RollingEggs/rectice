@@ -36,6 +36,9 @@
     loopABBtn: document.getElementById("loopABBtn"),
     playABtn: document.getElementById("playABtn"),
     playBBtn: document.getElementById("playBBtn"),
+    monitorBtn: document.getElementById("monitorBtn"),
+    monitorState: document.getElementById("monitorState"),
+    dotMonitor: document.getElementById("dotMonitor"),
     offsetMinusBtn: document.getElementById("offsetMinusBtn"),
     offsetPlusBtn: document.getElementById("offsetPlusBtn"),
     offsetReadout: document.getElementById("offsetReadout"),
@@ -79,7 +82,8 @@
       this.micSourceNode = null;
       this.recProcessor = null;
       this.recSilentGain = null;
-      this.monitorConnected = false;
+      this.monitorGain = null;
+      this.monitorMuted = true; // input monitoring is off until asked for
 
       this.musicGain = null;
       this.guitarGain = null;
@@ -160,6 +164,8 @@
         onTap: () => this.setMarker("B"),
         onHold: () => this.clearMarker("B"),
       });
+
+      el.monitorBtn.addEventListener("click", () => this.toggleMonitor());
 
       this.bindRepeat(el.offsetMinusBtn, () => this.nudgeTrack2(-1));
       this.bindRepeat(el.offsetPlusBtn, () => this.nudgeTrack2(1));
@@ -524,9 +530,8 @@
       this.isPlaying = true;
 
       this.startTrack1Source(this.startOffset);
-      if (this.isRecording) {
-        this.connectMonitoring();
-      } else {
+      // While recording, track 2 stays silent — it is being overwritten.
+      if (!this.isRecording) {
         this.startTrack2Source(this.startOffset);
       }
 
@@ -714,7 +719,6 @@
       if (this.isPlaying) {
         this.isRecording = true;
         this.stopTrack2Playback();
-        this.connectMonitoring();
       } else {
         this.isArmed = true;
         this.setStatus("録音待機中 - 再生ボタンでスタート");
@@ -743,6 +747,15 @@
       this.recSilentGain.connect(ctx.destination);
 
       this.recProcessor.onaudioprocess = (e) => this.handleRecordProcess(e);
+
+      // Both taps stay connected for the life of the mic; the record handler
+      // ignores blocks while stopped, and monitorGain holds the output at zero
+      // until monitoring is unmuted.
+      this.monitorGain = ctx.createGain();
+      this.monitorGain.gain.value = this.monitorMuted ? 0 : 1;
+      this.monitorGain.connect(this.guitarGain);
+      this.micSourceNode.connect(this.monitorGain);
+      this.micSourceNode.connect(this.recProcessor);
     }
 
     handleRecordProcess(e) {
@@ -760,18 +773,42 @@
       }
     }
 
-    connectMonitoring() {
-      if (this.monitorConnected) return;
-      this.micSourceNode.connect(this.guitarGain);
-      this.micSourceNode.connect(this.recProcessor);
-      this.monitorConnected = true;
+    /**
+     * Monitoring is independent of recording: the mic feeds the output through
+     * monitorGain, which the mute button opens and closes. Muting never
+     * touches the recording tap or the meter, so a muted take still records
+     * and still reads on the meter.
+     */
+    async toggleMonitor() {
+      const nextMuted = !this.monitorMuted;
+
+      if (!nextMuted) {
+        try {
+          await this.ensureMic(); // unmuting is a reason to open the mic
+        } catch (err) {
+          console.error(err);
+          this.setStatus("マイクにアクセスできませんでした");
+          return;
+        }
+      }
+
+      this.monitorMuted = nextMuted;
+      this.applyMonitor();
+      this.setStatus(
+        nextMuted ? "入力モニターをミュートしました" : "入力モニターON - ハウリングに注意",
+        2200
+      );
+      this.render();
     }
 
-    disconnectMonitoring() {
-      if (!this.monitorConnected) return;
-      try { this.micSourceNode.disconnect(this.guitarGain); } catch (e) {}
-      try { this.micSourceNode.disconnect(this.recProcessor); } catch (e) {}
-      this.monitorConnected = false;
+    applyMonitor() {
+      if (!this.monitorGain) return;
+      // Ramp rather than jump, so toggling does not click.
+      this.monitorGain.gain.setTargetAtTime(
+        this.monitorMuted ? 0 : 1,
+        this.audioCtx.currentTime,
+        0.01
+      );
     }
 
     stopTrack2Playback() {
@@ -811,7 +848,6 @@
     disengageRecording() {
       if (!this.isRecording) return;
       this.isRecording = false;
-      this.disconnectMonitoring();
       if (this.isPlaying) {
         this.startTrack2Source(this.getPlayhead());
       }
@@ -915,6 +951,10 @@
 
       this.renderScrubStage(el.rewindBtn, -1);
       this.renderScrubStage(el.ffBtn, 1);
+
+      el.monitorBtn.classList.toggle("on", !this.monitorMuted);
+      el.dotMonitor.classList.toggle("set", !this.monitorMuted);
+      el.monitorState.textContent = this.monitorMuted ? "MUTED" : "ON";
 
       const ms = Math.round(this.track2Offset * 1000);
       el.offsetReadout.textContent = (ms > 0 ? "+" : "") + ms + " ms";

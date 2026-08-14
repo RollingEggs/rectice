@@ -500,6 +500,32 @@ body {
   color: var(--cream-dim);
 }
 
+.btn-monitor {
+  height: 54px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 18px;
+  font-size: 13px;
+  letter-spacing: 1.5px;
+  color: var(--cream-dim);
+}
+
+.btn-monitor .monitor-state {
+  margin-left: auto;
+  font-family: "SF Mono", "DejaVu Sans Mono", Menlo, Consolas, monospace;
+  color: var(--cream-dim);
+}
+
+.btn-monitor.on {
+  color: var(--cream);
+  box-shadow: 0 3px 0 var(--btn-shadow), 0 0 12px rgba(111, 217, 176, 0.3);
+}
+
+.btn-monitor.on .monitor-state {
+  color: var(--teal);
+}
+
 .slider {
   -webkit-appearance: none;
   touch-action: none; /* drag adjusts the slider instead of scrolling the page */
