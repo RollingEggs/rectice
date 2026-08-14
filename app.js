@@ -18,7 +18,6 @@
   const BPM_MAX = 300;
   const BEATS_MIN = 1;
   const BEATS_MAX = 16;
-  const BEEP_ACCENT_HZ = 1500; // first beat
   const BEEP_HZ = 1000;
   const BEEP_LEN = 0.09;
 
@@ -1003,17 +1002,17 @@
       for (let i = 0; i < this.countInBeats; i++) {
         const at = contextStart + (this.countInStart + i * interval - timelineStart);
         if (at < ctx.currentTime) continue; // that beat is already behind us
-        this.playBeep(at, i === 0);
+        this.playBeep(at);
       }
     }
 
-    playBeep(at, accent) {
+    playBeep(at) {
       const ctx = this.audioCtx;
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
 
       osc.type = "sine";
-      osc.frequency.value = accent ? BEEP_ACCENT_HZ : BEEP_HZ;
+      osc.frequency.value = BEEP_HZ;
 
       // Short envelope, so it clicks like a metronome rather than blipping.
       gain.gain.setValueAtTime(0, at);
