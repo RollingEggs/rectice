@@ -4,6 +4,8 @@
   const SEEK_STEP = 5; // seconds jumped per rewind/ff click
   const SCRUB_INTERVAL_MS = 150; // press-and-hold scrub tick
   const REC_BUFFER_SIZE = 2048;
+  const ERASE_HOLD_MS = 800; // hold REC this long to erase the recorded track
+  const RIPPLE_MS = 1500; // covers the last ripple's delay + duration
 
   const el = {
     app: document.getElementById("app"),
@@ -18,6 +20,7 @@
     playIcon: document.getElementById("playIcon"),
     ffBtn: document.getElementById("ffBtn"),
     recBtn: document.getElementById("recBtn"),
+    recWrap: document.getElementById("recWrap"),
     markerABtn: document.getElementById("markerABtn"),
     markerBBtn: document.getElementById("markerBBtn"),
     dotA: document.getElementById("dotA"),
@@ -104,7 +107,7 @@
       el.fileInput.addEventListener("change", (e) => this.onFileSelected(e));
 
       el.playBtn.addEventListener("click", () => this.togglePlay());
-      el.recBtn.addEventListener("click", () => this.toggleRecord());
+      this.bindRecButton();
 
       this.bindScrub(el.rewindBtn, -1);
       this.bindScrub(el.ffBtn, 1);
@@ -123,6 +126,47 @@
         this.pan = parseFloat(el.panSlider.value);
         this.applyPan();
       });
+    }
+
+    /**
+     * Short press punches recording in/out; holding erases the recorded track.
+     * The erase suppresses the release so a long press never toggles recording.
+     */
+    bindRecButton() {
+      let timer = null;
+      let erased = false;
+
+      const down = (e) => {
+        if (el.recBtn.disabled) return;
+        e.preventDefault();
+        erased = false;
+        el.recBtn.classList.add("holding");
+        clearTimeout(timer);
+        timer = setTimeout(() => {
+          erased = true;
+          el.recBtn.classList.remove("holding");
+          this.eraseTrack2();
+        }, ERASE_HOLD_MS);
+      };
+
+      const up = () => {
+        clearTimeout(timer);
+        el.recBtn.classList.remove("holding");
+        if (!erased) this.toggleRecord();
+        erased = false;
+      };
+
+      const cancel = () => {
+        clearTimeout(timer);
+        el.recBtn.classList.remove("holding");
+        erased = false;
+      };
+
+      el.recBtn.addEventListener("pointerdown", down);
+      el.recBtn.addEventListener("pointerup", up);
+      el.recBtn.addEventListener("pointerleave", cancel);
+      el.recBtn.addEventListener("pointercancel", cancel);
+      el.recBtn.addEventListener("contextmenu", (e) => e.preventDefault());
     }
 
     bindScrub(button, direction) {
@@ -548,6 +592,32 @@
       }
     }
 
+    /** Clears the whole mono recording track, keeping the loaded music intact. */
+    eraseTrack2() {
+      if (!this.track2Data) return;
+
+      this.disengageRecording();
+      this.track2Data.fill(0);
+
+      // The playing source still references the pre-erase audio, so restart it.
+      if (this.isPlaying) {
+        this.stopTrack2Playback();
+        this.startTrack2Source(this.getPlayhead());
+      }
+
+      this.playRipple();
+      this.setStatus("録音トラックを消去しました", 2200);
+      this.render();
+    }
+
+    playRipple() {
+      el.recWrap.classList.remove("erasing");
+      void el.recWrap.offsetWidth; // reflow, so a repeated erase replays the animation
+      el.recWrap.classList.add("erasing");
+      clearTimeout(this.rippleTimer);
+      this.rippleTimer = setTimeout(() => el.recWrap.classList.remove("erasing"), RIPPLE_MS);
+    }
+
     disengageRecording() {
       if (!this.isRecording) return;
       this.isRecording = false;
@@ -595,8 +665,14 @@
       el.recBtn.classList.toggle("recording", this.isRecording);
     }
 
-    setStatus(msg) {
+    setStatus(msg, clearAfterMs) {
       el.statusMsg.textContent = msg;
+      clearTimeout(this.statusTimer);
+      if (clearAfterMs) {
+        this.statusTimer = setTimeout(() => {
+          if (el.statusMsg.textContent === msg) el.statusMsg.textContent = "";
+        }, clearAfterMs);
+      }
     }
   }
 
