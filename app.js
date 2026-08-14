@@ -636,7 +636,14 @@
 
     // ---------- markers ----------
 
+    /** Refuses to overwrite: an existing marker has to be cleared by holding first. */
     setMarker(which) {
+      const existing = which === "A" ? this.markerA : this.markerB;
+      if (existing != null) {
+        this.setStatus(`マーカー${which}は設定済みです - 長押しで解除`, 1800);
+        return;
+      }
+
       const t = this.getPlayhead();
       if (which === "A") this.markerA = t;
       else this.markerB = t;
