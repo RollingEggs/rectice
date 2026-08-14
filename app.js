@@ -19,6 +19,8 @@
   const BEATS_MIN = 1;
   const BEATS_MAX = 16;
   const BEEP_HZ = 1000;
+  const PREVIEW_SECONDS = 5; // how long a preview runs from the count start
+  const PREVIEW_MIN_AFTER_HEAD = 3; // ...but always this far past the head
   const BEEP_LEN = 0.09;
 
   const el = {
@@ -121,6 +123,9 @@
       this.countInBeats = 4;
       this.countInStart = -2.0; // timeline position of the first beep
       this.countInVoices = []; // scheduled beeps, so they can be cancelled
+      this.previewTimer = null;
+      this.previewResumeAt = 0;
+      this.previewWasArmed = false;
 
       this.musicGain = null;
       this.guitarGain = null;
@@ -585,6 +590,7 @@
     play(fromSeconds = null) {
       if (!this.track1Buffer) return;
       const ctx = this.ensureAudioCtx();
+      this.stopPreview(); // any transport move ends a running preview
       this.stopScrub();
       this.stopSources();
 
@@ -631,6 +637,7 @@
 
     pause() {
       if (!this.isPlaying) return;
+      this.stopPreview();
       this.cancelCountIn();
       this.playhead = Math.max(0, this.getPlayhead());
       if (this.isRecording) this.disengageRecording();
@@ -1038,10 +1045,54 @@
       this.countInVoices = [];
     }
 
+    /**
+     * Rolls the count and the music together, from the count start until a few
+     * seconds past the head, so the beeps can be lined up against where the
+     * song actually comes in. Never records, and puts the playhead back after.
+     */
     previewCountIn() {
+      if (this.previewTimer) {
+        this.stopPreview();
+        this.pause();
+        this.restoreAfterPreview();
+        return;
+      }
+
       const ctx = this.ensureAudioCtx();
       this.cancelCountIn();
-      this.scheduleCountIn(ctx.currentTime + 0.08, this.countInStart);
+
+      if (!this.track1Buffer) {
+        this.scheduleCountIn(ctx.currentTime + 0.08, this.countInStart); // beeps alone
+        return;
+      }
+
+      this.previewResumeAt = this.playhead;
+      this.previewWasArmed = this.isArmed;
+      this.isArmed = false; // a preview must never punch in
+
+      this.play(this.countInStart);
+      this.scheduleCountIn(this.contextStartTime, this.startOffset);
+
+      const end = Math.max(this.countInStart + PREVIEW_SECONDS, PREVIEW_MIN_AFTER_HEAD);
+      this.previewTimer = setTimeout(() => {
+        this.previewTimer = null;
+        this.pause();
+        this.restoreAfterPreview();
+      }, (end - this.startOffset) * 1000);
+
+      this.render();
+    }
+
+    restoreAfterPreview() {
+      this.playhead = this.previewResumeAt || 0;
+      this.isArmed = this.previewWasArmed || false;
+      this.previewWasArmed = false;
+      this.render();
+    }
+
+    stopPreview() {
+      clearTimeout(this.previewTimer);
+      this.previewTimer = null;
     }
 
     // ---------- count in settings ----------
@@ -1053,6 +1104,11 @@
 
     closeCountInModal() {
       el.countInModal.hidden = true;
+      if (this.previewTimer) {
+        this.stopPreview();
+        this.pause();
+        this.restoreAfterPreview();
+      }
       this.cancelCountIn();
     }
 
@@ -1172,6 +1228,8 @@
       el.dotB.classList.toggle("set", this.markerB != null);
 
       el.recMark.classList.toggle("has-data", this.track2HasData);
+
+      el.countInPreviewBtn.textContent = this.previewTimer ? "STOP" : "PREVIEW";
 
       el.countInBtn.classList.toggle("on", this.countInEnabled);
       el.dotCountIn.classList.toggle("set", this.countInEnabled);
