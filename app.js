@@ -31,6 +31,7 @@
     recWrap: document.getElementById("recWrap"),
     markerABtn: document.getElementById("markerABtn"),
     markerBBtn: document.getElementById("markerBBtn"),
+    recMark: document.getElementById("recMark"),
     dotA: document.getElementById("dotA"),
     dotB: document.getElementById("dotB"),
     markerALabel: document.getElementById("markerALabel"),
@@ -61,6 +62,7 @@
       this.track1Buffer = null; // decoded stereo music AudioBuffer
       this.track2Buffer = null; // mono recorded AudioBuffer (live-writable)
       this.track2Data = null; // Float32Array view into track2Buffer channel 0
+      this.track2HasData = false; // drives the paw mark on the LCD
       this.duration = 0;
 
       this.isPlaying = false;
@@ -276,6 +278,7 @@
 
         this.track2Buffer = ctx.createBuffer(1, decoded.length, ctx.sampleRate);
         this.track2Data = this.track2Buffer.getChannelData(0);
+        this.track2HasData = false;
 
         this.playhead = 0;
         this.markerA = null;
@@ -786,12 +789,19 @@
       const startSample = Math.round(blockStartPlayhead * this.audioCtx.sampleRate);
       const len = this.track2Data.length;
 
+      let audible = false;
       for (let i = 0; i < input.length; i++) {
         const idx = startSample + i;
         if (idx >= 0 && idx < len) {
-          this.track2Data[idx] = input[i];
+          const sample = input[i];
+          this.track2Data[idx] = sample;
+          if (sample !== 0) audible = true;
         }
       }
+
+      // The render loop is already running while recording, so flag it and let
+      // the next frame light the paw rather than touching the DOM from here.
+      if (audible) this.track2HasData = true;
     }
 
     /**
@@ -866,6 +876,7 @@
 
       this.disengageRecording();
       this.track2Data.fill(0);
+      this.track2HasData = false;
 
       // The playing source still references the pre-erase audio, so restart it.
       if (this.isPlaying) {
@@ -981,6 +992,8 @@
 
       el.dotA.classList.toggle("set", this.markerA != null);
       el.dotB.classList.toggle("set", this.markerB != null);
+
+      el.recMark.classList.toggle("has-data", this.track2HasData);
 
       // A set marker turns into its own play-from button.
       el.markerALabel.textContent = this.markerA != null ? "▶A" : "A";

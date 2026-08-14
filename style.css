@@ -132,17 +132,15 @@ body {
   margin-bottom: 22px;
   box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.55), 0 1px 0 rgba(255, 255, 255, 0.03);
   display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 10px;
-  flex-wrap: wrap;
+  flex-direction: column;
+  gap: 6px;
 }
 
-.lcd-right {
+.lcd-row {
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 7px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .meter-row {
@@ -165,6 +163,20 @@ body {
 .meter {
   display: flex;
   gap: 2px;
+}
+
+/* Paw print: lights up once track 2 holds any recorded audio. Kept in the
+   layout while empty so the marker row does not shift when it appears. */
+.rec-mark {
+  display: flex;
+  color: var(--teal);
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+
+.rec-mark.has-data {
+  opacity: 1;
+  filter: drop-shadow(0 0 5px rgba(111, 217, 176, 0.55));
 }
 
 /* Unlit segments stay faintly visible, like idle LCD cells. */

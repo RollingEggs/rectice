@@ -34,13 +34,24 @@
   </header>
 
   <div class="lcd" id="lcd">
-    <div class="lcd-main" id="timeDisplay">00:00.0</div>
-    <div class="lcd-right">
+    <div class="lcd-row">
+      <div class="lcd-main" id="timeDisplay">00:00.0</div>
       <div class="meter-row">
         <span class="meter-label" id="meterLabel">IN</span>
         <div class="meter" id="meter" role="meter" aria-label="外部入力レベル"></div>
       </div>
+    </div>
+    <div class="lcd-row">
       <div class="lcd-sub"><span id="markerADisplay">A --:--.-</span> <span id="markerBDisplay">B --:--.-</span></div>
+      <span class="rec-mark" id="recMark" role="img" aria-label="録音データあり">
+        <svg viewBox="0 0 24 24" width="19" height="19" aria-hidden="true">
+          <ellipse cx="12" cy="16.2" rx="5.4" ry="4.3" fill="currentColor" />
+          <ellipse cx="5.5" cy="10.4" rx="2.3" ry="2.9" fill="currentColor" transform="rotate(-22 5.5 10.4)" />
+          <ellipse cx="9.7" cy="7.1" rx="2.2" ry="3" fill="currentColor" transform="rotate(-8 9.7 7.1)" />
+          <ellipse cx="14.3" cy="7.1" rx="2.2" ry="3" fill="currentColor" transform="rotate(8 14.3 7.1)" />
+          <ellipse cx="18.5" cy="10.4" rx="2.3" ry="2.9" fill="currentColor" transform="rotate(22 18.5 10.4)" />
+        </svg>
+      </span>
     </div>
   </div>
 
