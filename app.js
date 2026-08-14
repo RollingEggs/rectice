@@ -5,6 +5,11 @@
   const HOLD_MS = 800; // press-and-hold threshold, shared by every button
   const RIPPLE_MS = 1500; // covers the last ripple's delay + duration
   const SCRUB_RATES = [2, 8, 25, 60]; // seconds of tape per second, per stage
+  const METER_SEGMENTS = 14;
+  const METER_WARN_FROM = 10; // segments from here up are yellow
+  const METER_CLIP_FROM = 12; // ...and from here up, red
+  const METER_FLOOR_DB = -48; // bottom of the meter's range
+  const METER_PEAK_HOLD_MS = 900;
   const OFFSET_STEP = 0.005; // 5ms per press
   const OFFSET_LIMIT = 1.0; // clamp track 2 shifting to +/- 1 second
 
@@ -14,6 +19,8 @@
     loadBtn: document.getElementById("loadBtn"),
     fileInput: document.getElementById("fileInput"),
     timeDisplay: document.getElementById("timeDisplay"),
+    meter: document.getElementById("meter"),
+    meterLabel: document.getElementById("meterLabel"),
     markerADisplay: document.getElementById("markerADisplay"),
     markerBDisplay: document.getElementById("markerBDisplay"),
     rewindBtn: document.getElementById("rewindBtn"),
@@ -84,6 +91,15 @@
       this.rafId = null;
       this.scrubTimer = null;
 
+      this.analyser = null;
+      this.analyserData = null;
+      this.meterSegments = [];
+      this.meterRaf = null;
+      this.meterLevel = 0;
+      this.meterPeak = 0;
+      this.meterPeakAt = 0;
+
+      this.buildMeter();
       this.bindUI();
       this.updateTransportEnabled();
       this.render();
@@ -714,6 +730,12 @@
       });
       this.micSourceNode = ctx.createMediaStreamSource(this.micStream);
 
+      this.analyser = ctx.createAnalyser();
+      this.analyser.fftSize = 1024;
+      this.analyserData = new Float32Array(this.analyser.fftSize);
+      this.micSourceNode.connect(this.analyser); // silent tap, never reaches output
+      this.startMeter();
+
       this.recProcessor = ctx.createScriptProcessor(REC_BUFFER_SIZE, 1, 1);
       this.recSilentGain = ctx.createGain();
       this.recSilentGain.gain.value = 0;
@@ -795,6 +817,64 @@
       }
     }
 
+    // ---------- input level meter ----------
+
+    buildMeter() {
+      for (let i = 0; i < METER_SEGMENTS; i++) {
+        const seg = document.createElement("span");
+        seg.className = "meter-seg";
+        if (i >= METER_CLIP_FROM) seg.classList.add("clip");
+        else if (i >= METER_WARN_FROM) seg.classList.add("warn");
+        el.meter.appendChild(seg);
+        this.meterSegments.push(seg);
+      }
+    }
+
+    /**
+     * Taps the mic ahead of the monitoring path, so the meter reads the input
+     * whenever the mic is open — including while armed, before tape rolls.
+     */
+    startMeter() {
+      if (this.meterRaf) return;
+      el.meterLabel.classList.add("live");
+
+      const tick = () => {
+        this.analyser.getFloatTimeDomainData(this.analyserData);
+
+        let peak = 0;
+        for (let i = 0; i < this.analyserData.length; i++) {
+          const v = Math.abs(this.analyserData[i]);
+          if (v > peak) peak = v;
+        }
+
+        this.updateMeter(peak);
+        this.meterRaf = requestAnimationFrame(tick);
+      };
+      this.meterRaf = requestAnimationFrame(tick);
+    }
+
+    updateMeter(instant) {
+      // Jump straight to a louder reading, ease back down from a quieter one.
+      this.meterLevel = instant > this.meterLevel ? instant : this.meterLevel * 0.88;
+
+      const now = performance.now();
+      if (instant >= this.meterPeak) {
+        this.meterPeak = instant;
+        this.meterPeakAt = now;
+      } else if (now - this.meterPeakAt > METER_PEAK_HOLD_MS) {
+        this.meterPeak = Math.max(this.meterLevel, this.meterPeak - 0.015);
+      }
+
+      const lit = Math.round(ampToNorm(this.meterLevel) * METER_SEGMENTS);
+      const peakIndex = Math.ceil(ampToNorm(this.meterPeak) * METER_SEGMENTS) - 1;
+
+      for (let i = 0; i < METER_SEGMENTS; i++) {
+        const seg = this.meterSegments[i];
+        seg.classList.toggle("on", i < lit);
+        seg.classList.toggle("peak", i === peakIndex && peakIndex >= 0);
+      }
+    }
+
     // ---------- mix controls ----------
 
     applyBalance() {
@@ -867,6 +947,14 @@
     const ss = Math.floor(seconds % 60);
     const t = Math.floor((seconds * 10) % 10);
     return `${pad2(mm)}:${pad2(ss)}.${t}`;
+  }
+
+  /** Maps a 0..1 amplitude onto the meter's dB scale. */
+  function ampToNorm(amp) {
+    if (amp <= 0) return 0;
+    const db = 20 * Math.log10(amp);
+    if (db <= METER_FLOOR_DB) return 0;
+    return Math.min(1, (db - METER_FLOOR_DB) / -METER_FLOOR_DB);
   }
 
   function pad2(n) {

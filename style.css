@@ -132,10 +132,68 @@ body {
   margin-bottom: 22px;
   box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.55), 0 1px 0 rgba(255, 255, 255, 0.03);
   display: flex;
-  align-items: baseline;
+  align-items: flex-end;
   justify-content: space-between;
   gap: 10px;
   flex-wrap: wrap;
+}
+
+.lcd-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 7px;
+}
+
+.meter-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.meter-label {
+  font-family: "SF Mono", "DejaVu Sans Mono", Menlo, Consolas, monospace;
+  font-size: 11px;
+  letter-spacing: 1px;
+  color: var(--teal-dim);
+}
+
+.meter-label.live {
+  color: var(--teal);
+}
+
+.meter {
+  display: flex;
+  gap: 2px;
+}
+
+/* Unlit segments stay faintly visible, like idle LCD cells. */
+.meter-seg {
+  width: 6px;
+  height: 12px;
+  border-radius: 1px;
+  background: rgba(111, 217, 176, 0.1);
+}
+
+.meter-seg.on {
+  background: var(--teal);
+  box-shadow: 0 0 4px rgba(111, 217, 176, 0.6);
+}
+
+.meter-seg.warn.on {
+  background: #d8c22e;
+  box-shadow: 0 0 4px rgba(216, 194, 46, 0.6);
+}
+
+.meter-seg.clip.on {
+  background: #d4402a;
+  box-shadow: 0 0 5px rgba(212, 64, 42, 0.75);
+}
+
+/* Peak hold sits on top of whatever colour that segment would be. */
+.meter-seg.peak {
+  background: #eef7f2;
+  box-shadow: 0 0 5px rgba(238, 247, 242, 0.7);
 }
 
 .lcd-main {

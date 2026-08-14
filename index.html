@@ -35,7 +35,13 @@
 
   <div class="lcd" id="lcd">
     <div class="lcd-main" id="timeDisplay">00:00.0</div>
-    <div class="lcd-sub"><span id="markerADisplay">A --:--.-</span> <span id="markerBDisplay">B --:--.-</span></div>
+    <div class="lcd-right">
+      <div class="meter-row">
+        <span class="meter-label" id="meterLabel">IN</span>
+        <div class="meter" id="meter" role="meter" aria-label="外部入力レベル"></div>
+      </div>
+      <div class="lcd-sub"><span id="markerADisplay">A --:--.-</span> <span id="markerBDisplay">B --:--.-</span></div>
+    </div>
   </div>
 
   <div class="transport-row">
