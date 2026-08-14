@@ -36,6 +36,9 @@
     loopABBtn: document.getElementById("loopABBtn"),
     playABtn: document.getElementById("playABtn"),
     playBBtn: document.getElementById("playBBtn"),
+    track2MuteBtn: document.getElementById("track2MuteBtn"),
+    track2State: document.getElementById("track2State"),
+    dotTrack2: document.getElementById("dotTrack2"),
     monitorBtn: document.getElementById("monitorBtn"),
     monitorState: document.getElementById("monitorState"),
     dotMonitor: document.getElementById("dotMonitor"),
@@ -84,6 +87,8 @@
       this.recSilentGain = null;
       this.monitorGain = null;
       this.monitorMuted = true; // input monitoring is off until asked for
+      this.track2Gain = null;
+      this.track2Muted = false; // the recorded track plays back by default
 
       this.musicGain = null;
       this.guitarGain = null;
@@ -119,6 +124,12 @@
         this.guitarPanner = this.audioCtx.createStereoPanner();
 
         this.musicGain.connect(this.audioCtx.destination);
+        // Recorded playback gets its own gain so muting it leaves the input
+        // monitor, which shares guitarGain, still audible.
+        this.track2Gain = this.audioCtx.createGain();
+        this.track2Gain.gain.value = this.track2Muted ? 0 : 1;
+        this.track2Gain.connect(this.guitarGain);
+
         this.guitarGain.connect(this.guitarPanner);
         this.guitarPanner.connect(this.audioCtx.destination);
 
@@ -166,6 +177,7 @@
       });
 
       el.monitorBtn.addEventListener("click", () => this.toggleMonitor());
+      el.track2MuteBtn.addEventListener("click", () => this.toggleTrack2Mute());
 
       this.bindRepeat(el.offsetMinusBtn, () => this.nudgeTrack2(-1));
       this.bindRepeat(el.offsetPlusBtn, () => this.nudgeTrack2(1));
@@ -472,7 +484,7 @@
       const ctx = this.audioCtx;
       const src = ctx.createBufferSource();
       src.buffer = this.track2Buffer;
-      src.connect(this.guitarGain);
+      src.connect(this.track2Gain);
 
       const readPos = offset - this.track2Offset;
       if (readPos >= 0) {
@@ -811,6 +823,26 @@
       );
     }
 
+    /** Silences playback of the recorded track without affecting the monitor. */
+    toggleTrack2Mute() {
+      this.track2Muted = !this.track2Muted;
+      this.applyTrack2Mute();
+      this.setStatus(
+        this.track2Muted ? "録音トラックをミュートしました" : "録音トラックのミュートを解除しました",
+        2000
+      );
+      this.render();
+    }
+
+    applyTrack2Mute() {
+      if (!this.track2Gain) return;
+      this.track2Gain.gain.setTargetAtTime(
+        this.track2Muted ? 0 : 1,
+        this.audioCtx.currentTime,
+        0.01
+      );
+    }
+
     stopTrack2Playback() {
       if (this.track2Source) {
         try { this.track2Source.stop(); } catch (e) {}
@@ -951,6 +983,10 @@
 
       this.renderScrubStage(el.rewindBtn, -1);
       this.renderScrubStage(el.ffBtn, 1);
+
+      el.track2MuteBtn.classList.toggle("on", !this.track2Muted);
+      el.dotTrack2.classList.toggle("set", !this.track2Muted);
+      el.track2State.textContent = this.track2Muted ? "MUTED" : "ON";
 
       el.monitorBtn.classList.toggle("on", !this.monitorMuted);
       el.dotMonitor.classList.toggle("set", !this.monitorMuted);

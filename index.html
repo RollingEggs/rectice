@@ -75,6 +75,12 @@
     </button>
   </div>
 
+  <button class="btn btn-toggle track2-mute" id="track2MuteBtn" aria-label="録音トラックのミュート切り替え">
+    <span class="dot set" id="dotTrack2"></span>
+    <span>REC TRACK</span>
+    <span class="toggle-state" id="track2State">ON</span>
+  </button>
+
   <div class="marker-row marker-row-3">
     <button class="btn btn-small" id="loopABBtn">A&#8644;B</button>
     <button class="btn btn-small" id="playABtn">&#9658;A</button>
@@ -112,10 +118,10 @@
       </div>
     </div>
 
-    <button class="btn btn-monitor" id="monitorBtn" aria-label="入力モニターの切り替え">
+    <button class="btn btn-toggle" id="monitorBtn" aria-label="入力モニターの切り替え">
       <span class="dot" id="dotMonitor"></span>
       <span>INPUT MONITOR</span>
-      <span class="monitor-state" id="monitorState">MUTED</span>
+      <span class="toggle-state" id="monitorState">MUTED</span>
     </button>
   </div>
 
