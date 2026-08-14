@@ -23,6 +23,24 @@
   box-sizing: border-box;
 }
 
+/* No iOS selection callout ("コピー / 検索 / 翻訳") on long press, and
+   manipulation drops the double-tap-to-zoom gesture. */
+html, body, .app, .btn, button, .lcd, .lcd-main, .lcd-sub, .slider-labels,
+.offset-readout, .track-label, .title, .status {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  user-select: none;
+}
+
+html, body, .app, .btn, button, .rec-btn {
+  touch-action: manipulation;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
 html, body {
   height: 100%;
 }
@@ -186,6 +204,27 @@ body {
   color: var(--cream);
 }
 
+/* Scrub speed stages: flat single colours, one per stage. */
+.btn-transport.scrub-1,
+.btn-transport.scrub-2,
+.btn-transport.scrub-3,
+.btn-transport.scrub-4 {
+  background: var(--scrub-color);
+  box-shadow: 0 3px 0 var(--btn-shadow), 0 0 16px var(--scrub-color);
+}
+
+.btn-transport.scrub-1 svg,
+.btn-transport.scrub-2 svg,
+.btn-transport.scrub-3 svg,
+.btn-transport.scrub-4 svg {
+  color: #1b1512;
+}
+
+.btn-transport.scrub-1 { --scrub-color: #3fae5f; }
+.btn-transport.scrub-2 { --scrub-color: #d8c22e; }
+.btn-transport.scrub-3 { --scrub-color: #e08a2e; }
+.btn-transport.scrub-4 { --scrub-color: #d4402a; }
+
 .rec-row {
   display: flex;
   justify-content: center;
@@ -257,6 +296,16 @@ body {
   transform: scale(0.82);
   filter: brightness(0.65);
   transition: transform 0.8s ease-out, filter 0.8s ease-out;
+}
+
+/* Armed: waiting for PLAY to actually start recording. */
+.rec-btn.armed .rec-btn-inner {
+  animation: rec-standby 0.9s ease-in-out infinite;
+}
+
+@keyframes rec-standby {
+  0%, 100% { background: radial-gradient(circle at 42% 38%, var(--red-bright), var(--red) 70%); opacity: 1; }
+  50% { background: radial-gradient(circle at 42% 38%, #6d2415, #4a1a10 70%); opacity: 0.75; }
 }
 
 .rec-btn.recording {
@@ -363,8 +412,35 @@ body {
   color: var(--cream-dim);
 }
 
+.offset-row {
+  display: grid;
+  grid-template-columns: 1fr 1.4fr 1fr;
+  gap: 12px;
+  align-items: center;
+}
+
+.btn-offset {
+  height: 48px;
+  font-size: 24px;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--cream);
+}
+
+.offset-readout {
+  font-family: "SF Mono", "DejaVu Sans Mono", Menlo, Consolas, monospace;
+  font-size: 16px;
+  text-align: center;
+  color: var(--teal);
+}
+
+.offset-readout.zero {
+  color: var(--cream-dim);
+}
+
 .slider {
   -webkit-appearance: none;
+  touch-action: none; /* drag adjusts the slider instead of scrolling the page */
   appearance: none;
   width: 100%;
   height: 24px;

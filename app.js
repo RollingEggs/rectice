@@ -1,11 +1,12 @@
 (() => {
   "use strict";
 
-  const SEEK_STEP = 5; // seconds jumped per rewind/ff click
-  const SCRUB_INTERVAL_MS = 150; // press-and-hold scrub tick
   const REC_BUFFER_SIZE = 2048;
-  const ERASE_HOLD_MS = 800; // hold REC this long to erase the recorded track
+  const HOLD_MS = 800; // press-and-hold threshold, shared by every button
   const RIPPLE_MS = 1500; // covers the last ripple's delay + duration
+  const SCRUB_RATES = [2, 8, 25, 60]; // seconds of tape per second, per stage
+  const OFFSET_STEP = 0.005; // 5ms per press
+  const OFFSET_LIMIT = 1.0; // clamp track 2 shifting to +/- 1 second
 
   const el = {
     app: document.getElementById("app"),
@@ -28,6 +29,9 @@
     loopABBtn: document.getElementById("loopABBtn"),
     playABtn: document.getElementById("playABtn"),
     playBBtn: document.getElementById("playBBtn"),
+    offsetMinusBtn: document.getElementById("offsetMinusBtn"),
+    offsetPlusBtn: document.getElementById("offsetPlusBtn"),
+    offsetReadout: document.getElementById("offsetReadout"),
     balanceSlider: document.getElementById("balanceSlider"),
     panSlider: document.getElementById("panSlider"),
     statusMsg: document.getElementById("statusMsg"),
@@ -48,6 +52,11 @@
 
       this.isPlaying = false;
       this.isRecording = false;
+      this.isArmed = false; // REC pressed while stopped, waiting on PLAY
+      this.track2Offset = 0; // seconds the recorded track is shifted by
+      this.scrubDirection = 0; // -1 rewind, +1 fast-forward, 0 idle
+      this.scrubStage = 0; // 1..4, drives speed and colour
+      this.scrubRaf = null;
       this.playhead = 0; // seconds, valid while stopped
       this.contextStartTime = 0; // audioCtx.currentTime at last (re)start
       this.startOffset = 0; // playhead value at that (re)start
@@ -103,17 +112,41 @@
     }
 
     bindUI() {
+      // Backstop for the iOS long-press callout on anything not covered by CSS.
+      document.addEventListener("contextmenu", (e) => e.preventDefault());
+
       el.loadBtn.addEventListener("click", () => el.fileInput.click());
       el.fileInput.addEventListener("change", (e) => this.onFileSelected(e));
 
       el.playBtn.addEventListener("click", () => this.togglePlay());
-      this.bindRecButton();
 
-      this.bindScrub(el.rewindBtn, -1);
-      this.bindScrub(el.ffBtn, 1);
+      this.bindTapHold(el.recBtn, {
+        onTap: () => this.toggleRecord(),
+        onHold: () => this.eraseTrack2(),
+        holdClass: "holding",
+      });
 
-      el.markerABtn.addEventListener("click", () => this.setMarker("A"));
-      el.markerBBtn.addEventListener("click", () => this.setMarker("B"));
+      // Tap steps the scrub speed; hold jumps to the very start / end.
+      this.bindTapHold(el.rewindBtn, {
+        onTap: () => this.stepScrub(-1),
+        onHold: () => this.jumpTo(0),
+      });
+      this.bindTapHold(el.ffBtn, {
+        onTap: () => this.stepScrub(1),
+        onHold: () => this.jumpTo(this.duration),
+      });
+
+      this.bindTapHold(el.markerABtn, {
+        onTap: () => this.setMarker("A"),
+        onHold: () => this.clearMarker("A"),
+      });
+      this.bindTapHold(el.markerBBtn, {
+        onTap: () => this.setMarker("B"),
+        onHold: () => this.clearMarker("B"),
+      });
+
+      this.bindRepeat(el.offsetMinusBtn, () => this.nudgeTrack2(-1));
+      this.bindRepeat(el.offsetPlusBtn, () => this.nudgeTrack2(1));
       el.loopABBtn.addEventListener("click", () => this.toggleLoopAB());
       el.playABtn.addEventListener("click", () => this.playFromMarker("A"));
       el.playBBtn.addEventListener("click", () => this.playFromMarker("B"));
@@ -129,59 +162,70 @@
     }
 
     /**
-     * Short press punches recording in/out; holding erases the recorded track.
-     * The erase suppresses the release so a long press never toggles recording.
+     * Wires a button so a quick press runs onTap and a press held past
+     * HOLD_MS runs onHold instead. The hold suppresses the release, so the
+     * two actions never both fire from one press.
      */
-    bindRecButton() {
+    bindTapHold(button, { onTap, onHold, holdClass }) {
       let timer = null;
-      let erased = false;
+      let held = false;
 
       const down = (e) => {
-        if (el.recBtn.disabled) return;
+        if (button.disabled) return;
         e.preventDefault();
-        erased = false;
-        el.recBtn.classList.add("holding");
+        held = false;
+        if (holdClass) button.classList.add(holdClass);
         clearTimeout(timer);
         timer = setTimeout(() => {
-          erased = true;
-          el.recBtn.classList.remove("holding");
-          this.eraseTrack2();
-        }, ERASE_HOLD_MS);
+          held = true;
+          if (holdClass) button.classList.remove(holdClass);
+          onHold();
+        }, HOLD_MS);
       };
 
       const up = () => {
         clearTimeout(timer);
-        el.recBtn.classList.remove("holding");
-        if (!erased) this.toggleRecord();
-        erased = false;
+        if (holdClass) button.classList.remove(holdClass);
+        if (!held) onTap();
+        held = false;
       };
 
       const cancel = () => {
         clearTimeout(timer);
-        el.recBtn.classList.remove("holding");
-        erased = false;
+        if (holdClass) button.classList.remove(holdClass);
+        held = false;
       };
 
-      el.recBtn.addEventListener("pointerdown", down);
-      el.recBtn.addEventListener("pointerup", up);
-      el.recBtn.addEventListener("pointerleave", cancel);
-      el.recBtn.addEventListener("pointercancel", cancel);
-      el.recBtn.addEventListener("contextmenu", (e) => e.preventDefault());
+      button.addEventListener("pointerdown", down);
+      button.addEventListener("pointerup", up);
+      button.addEventListener("pointerleave", cancel);
+      button.addEventListener("pointercancel", cancel);
+      button.addEventListener("contextmenu", (e) => e.preventDefault());
     }
 
-    bindScrub(button, direction) {
-      const step = () => this.seekBy(direction * SEEK_STEP);
-      const start = (e) => {
-        e.preventDefault();
-        step();
-        clearInterval(this.scrubTimer);
-        this.scrubTimer = setInterval(step, SCRUB_INTERVAL_MS);
+    /** Fires action on press, then repeatedly while the button stays held. */
+    bindRepeat(button, action) {
+      let timer = null;
+      let interval = null;
+
+      const stop = () => {
+        clearTimeout(timer);
+        clearInterval(interval);
       };
-      const stop = () => clearInterval(this.scrubTimer);
-      button.addEventListener("pointerdown", start);
+
+      button.addEventListener("pointerdown", (e) => {
+        if (button.disabled) return;
+        e.preventDefault();
+        action();
+        stop();
+        timer = setTimeout(() => {
+          interval = setInterval(action, 80);
+        }, 400);
+      });
       button.addEventListener("pointerup", stop);
       button.addEventListener("pointerleave", stop);
       button.addEventListener("pointercancel", stop);
+      button.addEventListener("contextmenu", (e) => e.preventDefault());
     }
 
     // ---------- file loading ----------
@@ -205,6 +249,7 @@
         this.markerA = null;
         this.markerB = null;
         this.loopAB = false;
+        this.track2Offset = 0;
 
         el.trackLabel.textContent = file.name;
         this.updateTransportEnabled();
@@ -395,13 +440,39 @@
       this.track1Source = src;
     }
 
+    /**
+     * Starts the recorded track shifted by track2Offset: a positive offset
+     * plays it later, a negative one earlier, which is what compensates for
+     * recording latency. Reading before the start of the take means waiting
+     * that long before rolling it instead.
+     */
     startTrack2Source(offset) {
       const ctx = this.audioCtx;
       const src = ctx.createBufferSource();
       src.buffer = this.track2Buffer;
       src.connect(this.guitarGain);
-      src.start(0, Math.max(0, offset));
+
+      const readPos = offset - this.track2Offset;
+      if (readPos >= 0) {
+        if (readPos >= this.track2Buffer.duration) return; // nothing left to play
+        src.start(0, readPos);
+      } else {
+        src.start(ctx.currentTime + -readPos, 0);
+      }
       this.track2Source = src;
+    }
+
+    nudgeTrack2(direction) {
+      if (!this.track2Buffer) return;
+      const next = this.track2Offset + direction * OFFSET_STEP;
+      this.track2Offset = Math.max(-OFFSET_LIMIT, Math.min(OFFSET_LIMIT, next));
+
+      // Re-cue so the new alignment is audible straight away.
+      if (this.isPlaying && !this.isRecording) {
+        this.stopTrack2Playback();
+        this.startTrack2Source(this.getPlayhead());
+      }
+      this.render();
     }
 
     stopSources() {
@@ -422,7 +493,14 @@
     play(fromSeconds = null) {
       if (!this.track1Buffer) return;
       const ctx = this.ensureAudioCtx();
+      this.stopScrub();
       this.stopSources();
+
+      // PLAY is what actually rolls tape on an armed recording.
+      if (this.isArmed) {
+        this.isArmed = false;
+        this.isRecording = true;
+      }
 
       const startAt = fromSeconds !== null ? fromSeconds : this.playhead;
       this.startOffset = Math.max(0, Math.min(startAt, this.duration));
@@ -444,6 +522,7 @@
       if (!this.isPlaying) return;
       this.playhead = this.getPlayhead();
       if (this.isRecording) this.disengageRecording();
+      this.isArmed = false;
       this.stopSources();
       this.isPlaying = false;
       this.stopClock();
@@ -472,9 +551,69 @@
       }
     }
 
-    seekBy(delta) {
+    /**
+     * Each tap advances the scrub speed one stage (wrapping after the 4th) and
+     * runs a silent shuttle in that direction. Tapping the opposite button
+     * flips direction and restarts at stage 1. PLAY stops it.
+     */
+    stepScrub(direction) {
       if (!this.track1Buffer) return;
-      this.seekTo(this.getPlayhead() + delta, this.isPlaying);
+
+      if (this.scrubDirection === direction) {
+        this.scrubStage = (this.scrubStage % SCRUB_RATES.length) + 1;
+      } else {
+        this.scrubDirection = direction;
+        this.scrubStage = 1;
+      }
+
+      if (this.isPlaying) this.pause(); // shuttling is silent, like a tape search
+      this.runScrub();
+      this.render();
+    }
+
+    runScrub() {
+      cancelAnimationFrame(this.scrubRaf);
+      let last = performance.now();
+
+      const step = (now) => {
+        const dt = (now - last) / 1000;
+        last = now;
+
+        const rate = SCRUB_RATES[this.scrubStage - 1];
+        let t = this.playhead + this.scrubDirection * rate * dt;
+
+        if (t <= 0) {
+          this.playhead = 0;
+          this.stopScrub();
+          return;
+        }
+        if (t >= this.duration) {
+          this.playhead = this.duration;
+          this.stopScrub();
+          return;
+        }
+
+        this.playhead = t;
+        this.render();
+        this.scrubRaf = requestAnimationFrame(step);
+      };
+
+      this.scrubRaf = requestAnimationFrame(step);
+    }
+
+    stopScrub() {
+      cancelAnimationFrame(this.scrubRaf);
+      this.scrubRaf = null;
+      this.scrubDirection = 0;
+      this.scrubStage = 0;
+      this.render();
+    }
+
+    /** Hold target for rewind / fast-forward: straight to the start or end. */
+    jumpTo(seconds) {
+      if (!this.track1Buffer) return;
+      this.stopScrub();
+      this.seekTo(seconds, this.isPlaying);
     }
 
     playFromMarker(which) {
@@ -486,8 +625,10 @@
 
     stopAll() {
       this.stopClock();
+      this.stopScrub();
       this.stopSources();
       this.disengageRecording();
+      this.isArmed = false;
       this.isPlaying = false;
       this.playhead = 0;
       this.updatePlayIcon();
@@ -502,6 +643,15 @@
       this.render();
     }
 
+    /** Hold target for the marker buttons. */
+    clearMarker(which) {
+      if (which === "A") this.markerA = null;
+      else this.markerB = null;
+      if (this.markerA == null || this.markerB == null) this.loopAB = false;
+      this.setStatus(`マーカー${which}を解除しました`, 1800);
+      this.render();
+    }
+
     toggleLoopAB() {
       if (this.markerA == null || this.markerB == null) return;
       this.loopAB = !this.loopAB;
@@ -510,11 +660,22 @@
 
     // ---------- recording (punch in/out) ----------
 
+    /**
+     * Stopped: REC arms the track and PLAY rolls it. Already rolling: REC
+     * punches straight in or out, so partial takes still work mid-playback.
+     */
     async toggleRecord() {
       if (!this.track1Buffer) return;
 
       if (this.isRecording) {
         this.disengageRecording();
+        this.render();
+        return;
+      }
+
+      if (this.isArmed) {
+        this.isArmed = false;
+        this.setStatus("録音待機を解除しました", 1800);
         this.render();
         return;
       }
@@ -527,13 +688,13 @@
         return;
       }
 
-      if (!this.isPlaying) {
-        this.isRecording = true;
-        this.play();
-      } else {
+      if (this.isPlaying) {
         this.isRecording = true;
         this.stopTrack2Playback();
         this.connectMonitoring();
+      } else {
+        this.isArmed = true;
+        this.setStatus("録音待機中 - 再生ボタンでスタート");
       }
       this.render();
     }
@@ -663,6 +824,23 @@
       el.playBBtn.disabled = !this.track1Buffer || this.markerB == null;
 
       el.recBtn.classList.toggle("recording", this.isRecording);
+      el.recBtn.classList.toggle("armed", this.isArmed);
+
+      this.renderScrubStage(el.rewindBtn, -1);
+      this.renderScrubStage(el.ffBtn, 1);
+
+      const ms = Math.round(this.track2Offset * 1000);
+      el.offsetReadout.textContent = (ms > 0 ? "+" : "") + ms + " ms";
+      el.offsetReadout.classList.toggle("zero", ms === 0);
+      el.offsetMinusBtn.disabled = !this.track2Buffer;
+      el.offsetPlusBtn.disabled = !this.track2Buffer;
+    }
+
+    renderScrubStage(button, direction) {
+      const active = this.scrubDirection === direction ? this.scrubStage : 0;
+      for (let i = 1; i <= SCRUB_RATES.length; i++) {
+        button.classList.toggle("scrub-" + i, active === i);
+      }
     }
 
     setStatus(msg, clearAfterMs) {
