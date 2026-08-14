@@ -58,7 +58,7 @@
 
   <div class="rec-row">
     <button class="btn btn-marker" id="markerABtn">
-      <span class="dot" id="dotA"></span><span>A</span>
+      <span class="dot" id="dotA"></span><span id="markerALabel">A</span>
     </button>
 
     <div class="rec-wrap" id="recWrap">
@@ -71,20 +71,17 @@
     </div>
 
     <button class="btn btn-marker" id="markerBBtn">
-      <span class="dot" id="dotB"></span><span>B</span>
+      <span class="dot" id="dotB"></span><span id="markerBLabel">B</span>
     </button>
   </div>
 
-  <button class="btn btn-toggle track2-mute" id="track2MuteBtn" aria-label="録音トラックのミュート切り替え">
-    <span class="dot set" id="dotTrack2"></span>
-    <span>REC TRACK</span>
-    <span class="toggle-state" id="track2State">ON</span>
-  </button>
-
-  <div class="marker-row marker-row-3">
+  <div class="marker-row marker-row-2">
+    <button class="btn btn-toggle" id="track2MuteBtn" aria-label="録音トラックのミュート切り替え">
+      <span class="dot set" id="dotTrack2"></span>
+      <span>REC TRACK</span>
+      <span class="toggle-state" id="track2State">ON</span>
+    </button>
     <button class="btn btn-small" id="loopABBtn">A&#8644;B</button>
-    <button class="btn btn-small" id="playABtn">&#9658;A</button>
-    <button class="btn btn-small" id="playBBtn">&#9658;B</button>
   </div>
 
   <div class="mixer">

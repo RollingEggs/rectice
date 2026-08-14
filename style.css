@@ -283,13 +283,13 @@ body {
 .btn-transport.scrub-3 { --scrub-color: #e08a2e; }
 .btn-transport.scrub-4 { --scrub-color: #d4402a; }
 
-/* Markers flank the REC button, sitting at the top of the row. */
+/* Markers flank the REC button, stretched to match its full height. */
 .rec-row {
   display: grid;
   grid-template-columns: 1fr auto 1fr;
-  align-items: start;
+  align-items: stretch;
   gap: 12px;
-  margin: 8px 0 16px;
+  margin: 8px 0 12px;
 }
 
 .rec-wrap {
@@ -396,13 +396,12 @@ body {
   margin-bottom: 12px;
 }
 
-.marker-row-3 {
-  grid-template-columns: 1fr 1fr 1fr;
+.marker-row-2 {
+  grid-template-columns: 1fr 1fr;
   margin-bottom: 22px;
 }
 
 .btn-marker {
-  height: 66px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -427,7 +426,7 @@ body {
 }
 
 .btn-small {
-  height: 144px; /* takes over the height freed by moving the markers up */
+  height: 72px;
   font-size: 15px;
   font-weight: 600;
   letter-spacing: 0.5px;
@@ -510,6 +509,15 @@ body {
   font-size: 13px;
   letter-spacing: 1.5px;
   color: var(--cream-dim);
+  min-width: 0; /* lets it share a grid row without overflowing */
+}
+
+/* Sharing a row with A⇄B, so it matches that button's height. */
+.marker-row-2 .btn-toggle {
+  height: 72px;
+  gap: 8px;
+  padding: 0 14px;
+  letter-spacing: 1px;
 }
 
 .btn-toggle .toggle-state {
@@ -527,10 +535,6 @@ body {
   color: var(--teal);
 }
 
-.track2-mute {
-  width: 100%;
-  margin-bottom: 12px;
-}
 
 .slider {
   -webkit-appearance: none;

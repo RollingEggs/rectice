@@ -33,9 +33,9 @@
     markerBBtn: document.getElementById("markerBBtn"),
     dotA: document.getElementById("dotA"),
     dotB: document.getElementById("dotB"),
+    markerALabel: document.getElementById("markerALabel"),
+    markerBLabel: document.getElementById("markerBLabel"),
     loopABBtn: document.getElementById("loopABBtn"),
-    playABtn: document.getElementById("playABtn"),
-    playBBtn: document.getElementById("playBBtn"),
     track2MuteBtn: document.getElementById("track2MuteBtn"),
     track2State: document.getElementById("track2State"),
     dotTrack2: document.getElementById("dotTrack2"),
@@ -168,11 +168,11 @@
       });
 
       this.bindTapHold(el.markerABtn, {
-        onTap: () => this.setMarker("A"),
+        onTap: () => this.markerTap("A"),
         onHold: () => this.clearMarker("A"),
       });
       this.bindTapHold(el.markerBBtn, {
-        onTap: () => this.setMarker("B"),
+        onTap: () => this.markerTap("B"),
         onHold: () => this.clearMarker("B"),
       });
 
@@ -182,8 +182,6 @@
       this.bindRepeat(el.offsetMinusBtn, () => this.nudgeTrack2(-1));
       this.bindRepeat(el.offsetPlusBtn, () => this.nudgeTrack2(1));
       el.loopABBtn.addEventListener("click", () => this.toggleLoopAB());
-      el.playABtn.addEventListener("click", () => this.playFromMarker("A"));
-      el.playBBtn.addEventListener("click", () => this.playFromMarker("B"));
 
       el.balanceSlider.addEventListener("input", () => {
         this.balance = parseFloat(el.balanceSlider.value);
@@ -416,7 +414,7 @@
 
     updateTransportEnabled() {
       const ready = !!this.track1Buffer;
-      [el.playBtn, el.recBtn, el.rewindBtn, el.ffBtn, el.markerABtn, el.markerBBtn, el.loopABBtn, el.playABtn, el.playBBtn].forEach(
+      [el.playBtn, el.recBtn, el.rewindBtn, el.ffBtn, el.markerABtn, el.markerBBtn, el.loopABBtn].forEach(
         (b) => (b.disabled = !ready)
       );
     }
@@ -668,6 +666,17 @@
     }
 
     // ---------- markers ----------
+
+    /**
+     * One button per marker: sets it while empty, plays from it once set, and
+     * clears it on a hold. Setting never overwrites, so the mark you punched
+     * in at stays put until you deliberately drop it.
+     */
+    markerTap(which) {
+      const existing = which === "A" ? this.markerA : this.markerB;
+      if (existing == null) this.setMarker(which);
+      else this.playFromMarker(which);
+    }
 
     /** Refuses to overwrite: an existing marker has to be cleared by holding first. */
     setMarker(which) {
@@ -973,10 +982,12 @@
       el.dotA.classList.toggle("set", this.markerA != null);
       el.dotB.classList.toggle("set", this.markerB != null);
 
+      // A set marker turns into its own play-from button.
+      el.markerALabel.textContent = this.markerA != null ? "▶A" : "A";
+      el.markerBLabel.textContent = this.markerB != null ? "▶B" : "B";
+
       el.loopABBtn.classList.toggle("active", this.loopAB);
       el.loopABBtn.disabled = !this.track1Buffer || this.markerA == null || this.markerB == null;
-      el.playABtn.disabled = !this.track1Buffer || this.markerA == null;
-      el.playBBtn.disabled = !this.track1Buffer || this.markerB == null;
 
       el.recBtn.classList.toggle("recording", this.isRecording);
       el.recBtn.classList.toggle("armed", this.isArmed);
