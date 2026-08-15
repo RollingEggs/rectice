@@ -69,7 +69,6 @@
     countSignBtn: document.getElementById("countSignBtn"),
     countStartMinusBtn: document.getElementById("countStartMinusBtn"),
     countStartPlusBtn: document.getElementById("countStartPlusBtn"),
-    countInSummary: document.getElementById("countInSummary"),
     countInPreviewBtn: document.getElementById("countInPreviewBtn"),
     countInCloseBtn: document.getElementById("countInCloseBtn"),
     track2MuteBtn: document.getElementById("track2MuteBtn"),
@@ -1241,11 +1240,6 @@
       el.countSignBtn.textContent = this.countStartNegative ? "−" : "+";
       el.beatsValue.textContent = String(this.countInBeats);
       el.countVolValue.textContent = Math.round(this.countInVolume * 100) + " %";
-
-      const last = this.countInStart + (this.countInBeats - 1) * (60 / this.countInBpm);
-      el.countInSummary.textContent =
-        `先頭を基準にした位置。${formatCountTime(this.countInStart)} から ${this.countInBeats} 拍、` +
-        `最後の拍は ${formatCountTime(last)}。`;
     }
 
     // ---------- input level meter ----------
@@ -1407,14 +1401,6 @@
   /** Milliseconds within the second, always three digits: .000, .001, .002 ... */
   function formatFraction(ms) {
     return "." + String(ms).padStart(3, "0");
-  }
-
-  function formatCountTime(seconds) {
-    const sign = seconds < 0 ? "-" : "+";
-    const totalMs = Math.round(Math.abs(seconds) * 1000);
-    const mm = Math.floor(totalMs / 60000);
-    const ss = Math.floor((totalMs % 60000) / 1000);
-    return `${sign}${mm}:${pad2(ss)}${formatFraction(totalMs % 1000)}`;
   }
 
   function formatTime(seconds) {

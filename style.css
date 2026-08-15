@@ -774,18 +774,11 @@ body {
   border-color: var(--teal);
 }
 
-.modal-note {
-  margin: 14px 0 18px;
-  font-size: 11px;
-  line-height: 1.6;
-  color: var(--cream-dim);
-  text-align: center;
-}
-
 .modal-actions {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 12px;
+  margin-top: 8px;
 }
 
 .modal-actions .btn-small {
