@@ -113,6 +113,10 @@ body {
   color: #423d35;
 }
 
+.lcd.off .lcd-file {
+  color: #423d35;
+}
+
 .lcd-row {
   display: flex;
   align-items: center;
@@ -208,6 +212,19 @@ body {
 .lcd-sub.marker-active-a #markerADisplay,
 .lcd-sub .marker-set {
   color: var(--teal);
+}
+
+/* Third LCD line: the loaded file's name, in the space freed up by
+   shrinking PAN, TRACK 2 TIMING, and INPUT MONITOR below. */
+.lcd-file {
+  font-family: "SF Mono", "DejaVu Sans Mono", Menlo, Consolas, monospace;
+  font-size: 12px;
+  letter-spacing: 1px;
+  color: var(--teal-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: color 0.3s ease;
 }
 
 .transport-row {
@@ -463,12 +480,38 @@ body {
 
 .monitor-row .btn-toggle {
   flex: 1;
+  height: 40px;
+  padding: 0 14px;
 }
 
 .slider-block {
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+
+/* PAN and TRACK 2 TIMING give up some height to grow the LCD's third
+   line — BALANCE stays full size since it's the one most reached for. */
+.slider-block-compact {
+  gap: 6px;
+}
+
+.slider-block-compact .slider {
+  height: 16px;
+}
+
+.slider-block-compact .slider::-webkit-slider-thumb {
+  height: 18px;
+  margin-top: -8px;
+}
+
+.slider-block-compact .slider::-moz-range-thumb {
+  height: 18px;
+}
+
+.slider-block-compact .offset-row .btn-offset {
+  height: 36px;
+  font-size: 19px;
 }
 
 .slider-labels {

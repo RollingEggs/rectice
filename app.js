@@ -29,6 +29,7 @@
   const el = {
     app: document.getElementById("app"),
     lcd: document.getElementById("lcd"),
+    lcdFileName: document.getElementById("lcdFileName"),
     loadBtn: document.getElementById("loadBtn"),
     fileInput: document.getElementById("fileInput"),
     timeDisplay: document.getElementById("timeDisplay"),
@@ -391,6 +392,7 @@
         this.loopAB = false;
         this.track2Offset = 0;
 
+        el.lcdFileName.textContent = file.name;
         this.updateTransportEnabled();
         this.render();
         this.setStatus("");
