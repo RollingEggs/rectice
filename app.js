@@ -302,6 +302,7 @@
         if (holdClass) button.classList.add(holdClass);
         clearTimeout(timer);
         timer = setTimeout(() => {
+          if (button.disabled) return; // could have gone disabled mid-press
           held = true;
           if (holdClass) button.classList.remove(holdClass);
           onHold();
@@ -311,7 +312,10 @@
       const up = () => {
         clearTimeout(timer);
         if (holdClass) button.classList.remove(holdClass);
-        if (!held) onTap();
+        // down() bails out on a disabled button without arming the hold
+        // timer, but pointerup still fires — without this check, releasing
+        // over a disabled button fired onTap anyway, since !held was true.
+        if (!held && !button.disabled) onTap();
         held = false;
       };
 
