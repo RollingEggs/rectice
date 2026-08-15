@@ -77,6 +77,11 @@
     monitorBtn: document.getElementById("monitorBtn"),
     monitorState: document.getElementById("monitorState"),
     dotMonitor: document.getElementById("dotMonitor"),
+    deviceModal: document.getElementById("deviceModal"),
+    deviceList: document.getElementById("deviceList"),
+    deviceHint: document.getElementById("deviceHint"),
+    deviceRefreshBtn: document.getElementById("deviceRefreshBtn"),
+    deviceCloseBtn: document.getElementById("deviceCloseBtn"),
     offsetMinusBtn: document.getElementById("offsetMinusBtn"),
     offsetPlusBtn: document.getElementById("offsetPlusBtn"),
     offsetReadout: document.getElementById("offsetReadout"),
@@ -123,6 +128,9 @@
       this.recSilentGain = null;
       this.monitorGain = null;
       this.monitorMuted = true; // input monitoring is off until asked for
+      this.inputDeviceId = null; // null = follow the system's default input
+      this.inputDeviceLabel = "システム既定";
+      this.inputDevices = [];
       this.track2Gain = null;
       this.track2Muted = false; // the recorded track plays back by default
 
@@ -251,7 +259,22 @@
         onHold: () => this.clearMarker("B"),
       });
 
-      el.monitorBtn.addEventListener("click", () => this.toggleMonitor());
+      this.bindTapHold(el.monitorBtn, {
+        onTap: () => this.toggleMonitor(),
+        onHold: () => this.openDeviceModal(),
+      });
+
+      el.deviceRefreshBtn.addEventListener("click", () => this.refreshDeviceList());
+      el.deviceCloseBtn.addEventListener("click", () => this.closeDeviceModal());
+      el.deviceModal.addEventListener("pointerdown", (e) => {
+        if (e.target === el.deviceModal) this.closeDeviceModal();
+      });
+
+      if (navigator.mediaDevices) {
+        navigator.mediaDevices.addEventListener("devicechange", () => {
+          if (!el.deviceModal.hidden) this.refreshDeviceList();
+        });
+      }
       el.track2MuteBtn.addEventListener("click", () => this.toggleTrack2Mute());
 
       this.bindRepeat(el.offsetMinusBtn, () => this.nudgeTrack2(-1));
@@ -860,12 +883,41 @@
       this.render();
     }
 
+    /** Opens the default input if no mic is open yet; leaves an already-open one alone. */
     async ensureMic() {
       if (this.micStream) return;
+      await this.openMic(this.inputDeviceId);
+    }
+
+    /**
+     * Opens a specific input (null = system default), tearing down whatever
+     * was open first. iOS routes an external interface in as the system
+     * default automatically when it's connected, so most of the time this
+     * only ever needs deviceId=null — the explicit picker exists for when
+     * more than one input is available and the automatic routing guesses
+     * wrong, or for switching back deliberately.
+     */
+    async openMic(deviceId) {
       const ctx = this.ensureAudioCtx();
-      this.micStream = await navigator.mediaDevices.getUserMedia({
-        audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
-      });
+      const constraints = {
+        audio: {
+          echoCancellation: false,
+          noiseSuppression: false,
+          autoGainControl: false,
+          ...(deviceId ? { deviceId: { exact: deviceId } } : {}),
+        },
+      };
+
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      this.closeMic(); // only tear down the old stream once the new one is confirmed working
+
+      this.micStream = stream;
+      this.inputDeviceId = deviceId;
+      this.inputDeviceLabel = streamDeviceLabel(stream);
+
+      const track = stream.getAudioTracks()[0];
+      if (track) track.onended = () => this.handleInputDeviceLost();
+
       this.micSourceNode = ctx.createMediaStreamSource(this.micStream);
 
       this.analyser = ctx.createAnalyser();
@@ -890,6 +942,122 @@
       this.monitorGain.connect(this.guitarGain);
       this.micSourceNode.connect(this.monitorGain);
       this.micSourceNode.connect(this.recProcessor);
+    }
+
+    /** Tears down the current input's stream and audio nodes, if any are open. */
+    closeMic() {
+      if (this.micStream) {
+        this.micStream.getTracks().forEach((track) => {
+          track.onended = null;
+          track.stop();
+        });
+      }
+      [this.micSourceNode, this.analyser, this.recProcessor, this.recSilentGain, this.monitorGain].forEach(
+        (node) => {
+          if (node) { try { node.disconnect(); } catch (e) {} }
+        }
+      );
+      if (this.recProcessor) this.recProcessor.onaudioprocess = null;
+      this.stopMeter();
+
+      this.micStream = null;
+      this.micSourceNode = null;
+      this.analyser = null;
+      this.analyserData = null;
+      this.recProcessor = null;
+      this.recSilentGain = null;
+      this.monitorGain = null;
+    }
+
+    /** A selected device disappearing (unplugged) falls back to the system default. */
+    handleInputDeviceLost() {
+      const wasExplicit = this.inputDeviceId !== null;
+      this.closeMic();
+      this.inputDeviceId = null;
+      this.inputDeviceLabel = "システム既定";
+
+      if (!wasExplicit) return; // the default itself never "disappears" this way
+
+      this.setStatus("入力デバイスが切断されました。既定の入力に戻します", 3000);
+      if (!this.monitorMuted || this.isArmed || this.isRecording) {
+        this.ensureMic().catch(() => this.setStatus("マイクにアクセスできませんでした"));
+      }
+      this.render();
+    }
+
+    async switchInputDevice(deviceId) {
+      try {
+        await this.openMic(deviceId);
+      } catch (err) {
+        console.error(err);
+        this.setStatus("そのデバイスを開けませんでした");
+        return;
+      }
+      this.setStatus(`入力を「${this.inputDeviceLabel}」に切り替えました`, 2500);
+      this.renderDeviceList();
+      this.render();
+    }
+
+    // ---------- input device picker ----------
+
+    async openDeviceModal() {
+      el.deviceModal.hidden = false;
+      el.deviceHint.textContent = "";
+
+      if (!this.micStream) {
+        try {
+          await this.ensureMic(); // permission is what makes device labels visible
+        } catch (err) {
+          console.error(err);
+          el.deviceList.innerHTML = "";
+          el.deviceHint.textContent = "マイクへのアクセスが許可されていません。ブラウザの設定を確認してください。";
+          return;
+        }
+      }
+      await this.refreshDeviceList();
+    }
+
+    closeDeviceModal() {
+      el.deviceModal.hidden = true;
+    }
+
+    async refreshDeviceList() {
+      try {
+        const all = await navigator.mediaDevices.enumerateDevices();
+        this.inputDevices = all.filter((d) => d.kind === "audioinput");
+      } catch (err) {
+        console.error(err);
+        this.inputDevices = [];
+      }
+      this.renderDeviceList();
+    }
+
+    renderDeviceList() {
+      el.deviceList.innerHTML = "";
+
+      const addItem = (deviceId, label, selected) => {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "device-item" + (selected ? " selected" : "");
+        const labelSpan = document.createElement("span");
+        labelSpan.className = "device-item-label";
+        labelSpan.textContent = label;
+        const check = document.createElement("span");
+        check.className = "device-item-check";
+        check.textContent = "●";
+        btn.append(labelSpan, check);
+        btn.addEventListener("click", () => this.switchInputDevice(deviceId));
+        el.deviceList.appendChild(btn);
+      };
+
+      addItem(null, "システム既定", this.inputDeviceId === null);
+      this.inputDevices.forEach((d, i) => {
+        addItem(d.deviceId, d.label || `入力デバイス ${i + 1}`, this.inputDeviceId === d.deviceId);
+      });
+
+      el.deviceHint.textContent = this.inputDevices.some((d) => d.label)
+        ? ""
+        : "デバイス名が表示されない場合は、マイクへのアクセスを許可すると表示されます。";
     }
 
     handleRecordProcess(e) {
@@ -1280,6 +1448,18 @@
       this.meterRaf = requestAnimationFrame(tick);
     }
 
+    /** Called when the mic closes, so a device switch doesn't leave a stale reading lit. */
+    stopMeter() {
+      cancelAnimationFrame(this.meterRaf);
+      this.meterRaf = null;
+      el.meterLabel.classList.remove("live");
+      this.meterLevel = 0;
+      this.meterPeak = 0;
+      this.meterSegments.forEach((seg) => {
+        seg.classList.remove("on", "peak");
+      });
+    }
+
     updateMeter(instant) {
       // Jump straight to a louder reading, ease back down from a quieter one.
       this.meterLevel = instant > this.meterLevel ? instant : this.meterLevel * 0.88;
@@ -1384,6 +1564,11 @@
         }, clearAfterMs);
       }
     }
+  }
+
+  function streamDeviceLabel(stream) {
+    const track = stream.getAudioTracks()[0];
+    return (track && track.label) || "システム既定";
   }
 
   function clamp(value, min, max) {

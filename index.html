@@ -129,7 +129,7 @@
       </div>
     </div>
 
-    <button class="btn btn-toggle" id="monitorBtn" aria-label="入力モニターの切り替え">
+    <button class="btn btn-toggle" id="monitorBtn" aria-label="入力モニターの切り替え（長押しで入力デバイスを選択）">
       <span class="dot" id="dotMonitor"></span>
       <span>INPUT MONITOR</span>
       <span class="toggle-state" id="monitorState">MUTED</span>
@@ -223,6 +223,20 @@
     <div class="modal-actions">
       <button class="btn btn-small" id="countInPreviewBtn">PREVIEW</button>
       <button class="btn btn-small" id="countInCloseBtn">CLOSE</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="deviceModal" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-label="入力デバイスの選択">
+    <h2 class="modal-title">INPUT DEVICE</h2>
+
+    <div class="device-list" id="deviceList"></div>
+    <p class="modal-hint" id="deviceHint"></p>
+
+    <div class="modal-actions">
+      <button class="btn btn-small" id="deviceRefreshBtn">REFRESH</button>
+      <button class="btn btn-small" id="deviceCloseBtn">CLOSE</button>
     </div>
   </div>
 </div>

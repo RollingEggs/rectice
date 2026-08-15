@@ -786,6 +786,67 @@ body {
   margin-top: 8px;
 }
 
+.device-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 300px;
+  overflow-y: auto;
+  margin-bottom: 6px;
+}
+
+.device-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  height: 52px;
+  padding: 0 16px;
+  border: none;
+  border-radius: 14px;
+  background: linear-gradient(160deg, var(--btn-light), var(--btn));
+  color: var(--cream);
+  cursor: pointer;
+  font-size: 13px;
+  text-align: left;
+  box-shadow: 0 3px 0 var(--btn-shadow), 0 6px 10px rgba(0, 0, 0, 0.35);
+}
+
+.device-item:active {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 var(--btn-shadow), 0 3px 6px rgba(0, 0, 0, 0.35);
+}
+
+.device-item.selected {
+  color: var(--teal);
+  box-shadow: 0 3px 0 var(--btn-shadow), 0 0 12px rgba(111, 217, 176, 0.35);
+}
+
+.device-item-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.device-item-check {
+  flex: none;
+  color: var(--teal);
+  opacity: 0;
+  font-size: 10px;
+}
+
+.device-item.selected .device-item-check {
+  opacity: 1;
+}
+
+.modal-hint {
+  margin: 4px 0 14px;
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--cream-dim);
+  text-align: center;
+}
+
 .modal-actions .btn-small {
   height: 52px;
   font-size: 13px;
