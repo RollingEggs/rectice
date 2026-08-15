@@ -29,6 +29,7 @@
   const el = {
     app: document.getElementById("app"),
     trackLabel: document.getElementById("trackLabel"),
+    lcd: document.getElementById("lcd"),
     loadBtn: document.getElementById("loadBtn"),
     fileInput: document.getElementById("fileInput"),
     timeDisplay: document.getElementById("timeDisplay"),
@@ -522,9 +523,21 @@
 
     updateTransportEnabled() {
       const ready = !!this.track1Buffer;
-      [el.playBtn, el.recBtn, el.rewindBtn, el.ffBtn, el.markerABtn, el.markerBBtn, el.loopABBtn].forEach(
-        (b) => (b.disabled = !ready)
-      );
+      [
+        el.playBtn,
+        el.recBtn,
+        el.rewindBtn,
+        el.ffBtn,
+        el.markerABtn,
+        el.markerBBtn,
+        el.loopABBtn,
+        el.track2MuteBtn, // there's no track 2 to mute until a file loads
+        el.balanceSlider,
+        el.panSlider,
+      ].forEach((b) => (b.disabled = !ready));
+
+      // The clock and marker times read as a powered-off LCD until then too.
+      el.lcd.classList.toggle("off", !ready);
     }
 
     // ---------- transport clock ----------

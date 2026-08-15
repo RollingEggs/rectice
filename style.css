@@ -134,6 +134,25 @@ body {
   display: flex;
   flex-direction: column;
   gap: 6px;
+  transition: background 0.3s ease;
+}
+
+/* Before a track loads, the panel reads as glass with nothing lit behind
+   it — flat and neutral instead of the teal-tinted "powered" gradient. The
+   meter and paw mark aren't touched: they track the mic/recording, not
+   whether a track is loaded. */
+.lcd.off {
+  background: linear-gradient(180deg, #221c17, #18140f);
+}
+
+.lcd.off .lcd-main {
+  color: #4c473e;
+  text-shadow: none;
+}
+
+.lcd.off .lcd-sub,
+.lcd.off .lcd-sub .marker-set {
+  color: #423d35;
 }
 
 .lcd-row {
@@ -215,6 +234,7 @@ body {
   letter-spacing: 2px;
   color: var(--teal);
   text-shadow: 0 0 12px rgba(111, 217, 176, 0.45);
+  transition: color 0.3s ease, text-shadow 0.3s ease;
 }
 
 .lcd-sub {
@@ -224,6 +244,7 @@ body {
   display: flex;
   gap: 14px;
   white-space: nowrap;
+  transition: color 0.3s ease;
 }
 
 .lcd-sub.marker-active-a #markerADisplay,
@@ -578,6 +599,17 @@ body {
   color: var(--teal);
 }
 
+/* REC TRACK defaults to "on" before any file loads, but there's no track 2
+   yet for that to mean anything — the disabled state overrides .on's glow
+   back to the same flat, unlit look as every other disabled button. */
+.btn-toggle.on:disabled {
+  color: var(--cream-dim);
+  box-shadow: 0 3px 0 var(--btn-shadow), 0 6px 10px rgba(0, 0, 0, 0.35);
+}
+
+.btn-toggle.on:disabled .toggle-state {
+  color: var(--cream-dim);
+}
 
 .slider {
   -webkit-appearance: none;
@@ -590,16 +622,28 @@ body {
   margin: 0;
 }
 
+.slider:disabled {
+  cursor: not-allowed;
+}
+
 .slider::-webkit-slider-runnable-track {
   height: 2px;
   background: #4a4038;
   border-radius: 2px;
 }
 
+.slider:disabled::-webkit-slider-runnable-track {
+  background: #332c26;
+}
+
 .slider::-moz-range-track {
   height: 2px;
   background: #4a4038;
   border-radius: 2px;
+}
+
+.slider:disabled::-moz-range-track {
+  background: #332c26;
 }
 
 .slider::-webkit-slider-thumb {
@@ -613,6 +657,11 @@ body {
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
 }
 
+.slider:disabled::-webkit-slider-thumb {
+  background: linear-gradient(180deg, #6b6258, #55504a);
+  box-shadow: none;
+}
+
 .slider::-moz-range-thumb {
   width: 14px;
   height: 26px;
@@ -620,6 +669,11 @@ body {
   background: linear-gradient(180deg, #efe6d4, var(--cream));
   border: none;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.slider:disabled::-moz-range-thumb {
+  background: linear-gradient(180deg, #6b6258, #55504a);
+  box-shadow: none;
 }
 
 .modal-backdrop {
