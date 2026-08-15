@@ -159,20 +159,25 @@
       this.meterPeak = 0;
       this.meterPeakAt = 0;
 
+      this._pendingMarkerA = null; // markers restored from a previous visit,
+      this._pendingMarkerB = null; // applied once the saved file finishes loading
       this.loadPersistedSettings();
 
       this.buildMeter();
       this.bindUI();
       this.updateTransportEnabled();
       this.render();
+
+      this.restoreSavedTrack(); // async; runs in the background
     }
 
     // ---------- setup ----------
 
     /**
-     * Restores mixer/count-in/device preferences saved by a previous visit.
-     * Deliberately excludes the loaded track, recorded audio, and markers —
-     * those belong to a specific session, not a standing preference.
+     * Restores mixer/count-in/device preferences saved by a previous visit,
+     * plus the A/B marker positions — held as pending until restoreSavedTrack()
+     * confirms there's actually a track to apply them to. Recorded audio isn't
+     * included: it's derived from performance, not a setting to remember.
      */
     loadPersistedSettings() {
       let saved = null;
@@ -202,6 +207,8 @@
       if (typeof saved.countStartNegative === "boolean") this.countStartNegative = saved.countStartNegative;
       if (typeof saved.countInVolume === "number") this.countInVolume = clamp(saved.countInVolume, 0, 1);
       if (typeof saved.inputDeviceId === "string") this.inputDeviceId = saved.inputDeviceId;
+      if (typeof saved.markerA === "number") this._pendingMarkerA = saved.markerA;
+      if (typeof saved.markerB === "number") this._pendingMarkerB = saved.markerB;
 
       // The sliders' DOM value has to be set explicitly — unlike the toggle
       // buttons, they aren't redrawn from state by render().
@@ -226,6 +233,8 @@
             countStartNegative: this.countStartNegative,
             countInVolume: this.countInVolume,
             inputDeviceId: this.inputDeviceId,
+            markerA: this.markerA,
+            markerB: this.markerB,
           })
         );
       } catch (e) {
@@ -442,32 +451,81 @@
       if (!file) return;
       try {
         this.setStatus("読み込み中...");
-        const ctx = this.ensureAudioCtx();
         const decoded = await this.decodeMediaFile(file);
 
-        this.stopAll();
-        this.track1Buffer = decoded;
-        this.duration = decoded.duration;
-
-        this.track2Buffer = ctx.createBuffer(1, decoded.length, ctx.sampleRate);
-        this.track2Data = this.track2Buffer.getChannelData(0);
-        this.track2HasData = false;
-
-        this.playhead = 0;
+        this.applyDecodedTrack(decoded, file.name);
+        // A freshly picked file starts clean — any markers/offset saved
+        // belonged to whatever was loaded before.
         this.markerA = null;
         this.markerB = null;
-        this.loopAB = false;
         this.track2Offset = 0;
-
-        el.lcdFileName.textContent = file.name;
-        this.updateTransportEnabled();
+        this.persistSettings();
         this.render();
         this.setStatus("");
+
+        try {
+          await saveTrackFile(file);
+        } catch (err) {
+          console.warn("could not persist the loaded file for next time", err);
+        }
       } catch (err) {
         console.error(err);
         this.setStatus(err && err.userMessage ? err.userMessage : "読み込みに失敗しました");
       } finally {
         el.fileInput.value = "";
+      }
+    }
+
+    /**
+     * Shared setup for a successfully decoded track, used by both a fresh
+     * file pick and restoring the one saved from last time. Markers and
+     * track 2 timing are deliberately left to the caller — a fresh pick
+     * clears them, a restore re-applies what was saved.
+     */
+    applyDecodedTrack(decoded, fileName) {
+      const ctx = this.ensureAudioCtx();
+      this.stopAll();
+      this.track1Buffer = decoded;
+      this.duration = decoded.duration;
+
+      this.track2Buffer = ctx.createBuffer(1, decoded.length, ctx.sampleRate);
+      this.track2Data = this.track2Buffer.getChannelData(0);
+      this.track2HasData = false;
+
+      this.playhead = 0;
+      this.loopAB = false;
+
+      el.lcdFileName.textContent = fileName;
+      this.updateTransportEnabled();
+    }
+
+    /** Re-loads the file saved from last visit, if any, and reapplies its markers. */
+    async restoreSavedTrack() {
+      if (!window.indexedDB) return;
+
+      let record;
+      try {
+        record = await loadTrackFile();
+      } catch (err) {
+        console.warn("could not read the saved track", err);
+        return;
+      }
+      if (!record || !record.blob) return;
+
+      try {
+        this.setStatus("前回のファイルを読み込み中...");
+        const decoded = await this.decodeMediaFile(record.blob);
+
+        this.applyDecodedTrack(decoded, record.name || "");
+        this.markerA = this._pendingMarkerA != null ? clamp(this._pendingMarkerA, 0, this.duration) : null;
+        this.markerB = this._pendingMarkerB != null ? clamp(this._pendingMarkerB, 0, this.duration) : null;
+        this.render();
+        this.setStatus("");
+      } catch (err) {
+        console.error(err);
+        this.setStatus("");
+        // Broken or unreadable — drop it so this doesn't fail again every visit.
+        clearTrackFile().catch(() => {});
       }
     }
 
@@ -908,6 +966,7 @@
       const t = this.getPlayhead();
       if (which === "A") this.markerA = t;
       else this.markerB = t;
+      this.persistSettings();
       this.render();
     }
 
@@ -917,6 +976,7 @@
       else this.markerB = null;
       if (this.markerA == null || this.markerB == null) this.loopAB = false;
       this.setStatus(`マーカー${which}を解除しました`, 1800);
+      this.persistSettings();
       this.render();
     }
 
@@ -1668,6 +1728,68 @@
   function streamDeviceLabel(stream) {
     const track = stream.getAudioTracks()[0];
     return (track && track.label) || "システム既定";
+  }
+
+  // ---------- saved-track storage (IndexedDB) ----------
+  //
+  // The loaded file's bytes go here rather than localStorage: it can be many
+  // megabytes, and localStorage both has a much smaller quota and is a
+  // synchronous API that would block the page while writing it.
+
+  const TRACK_DB_NAME = "tapeRecorderTrackDB";
+  const TRACK_DB_VERSION = 1;
+  const TRACK_STORE = "track";
+  const TRACK_KEY = "current";
+
+  function openTrackDB() {
+    return new Promise((resolve, reject) => {
+      const req = indexedDB.open(TRACK_DB_NAME, TRACK_DB_VERSION);
+      req.onupgradeneeded = () => req.result.createObjectStore(TRACK_STORE);
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  async function saveTrackFile(file) {
+    const db = await openTrackDB();
+    try {
+      await new Promise((resolve, reject) => {
+        const tx = db.transaction(TRACK_STORE, "readwrite");
+        tx.objectStore(TRACK_STORE).put({ name: file.name, type: file.type, blob: file }, TRACK_KEY);
+        tx.oncomplete = resolve;
+        tx.onerror = () => reject(tx.error);
+      });
+    } finally {
+      db.close();
+    }
+  }
+
+  async function loadTrackFile() {
+    const db = await openTrackDB();
+    try {
+      return await new Promise((resolve, reject) => {
+        const tx = db.transaction(TRACK_STORE, "readonly");
+        const req = tx.objectStore(TRACK_STORE).get(TRACK_KEY);
+        req.onsuccess = () => resolve(req.result || null);
+        req.onerror = () => reject(req.error);
+      });
+    } finally {
+      db.close();
+    }
+  }
+
+  async function clearTrackFile() {
+    const db = await openTrackDB();
+    try {
+      await new Promise((resolve, reject) => {
+        const tx = db.transaction(TRACK_STORE, "readwrite");
+        tx.objectStore(TRACK_STORE).delete(TRACK_KEY);
+        tx.oncomplete = resolve;
+        tx.onerror = () => reject(tx.error);
+      });
+    } finally {
+      db.close();
+    }
   }
 
   function clamp(value, min, max) {
