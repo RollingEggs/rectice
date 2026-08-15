@@ -28,7 +28,6 @@
 
   const el = {
     app: document.getElementById("app"),
-    trackLabel: document.getElementById("trackLabel"),
     lcd: document.getElementById("lcd"),
     loadBtn: document.getElementById("loadBtn"),
     fileInput: document.getElementById("fileInput"),
@@ -392,7 +391,6 @@
         this.loopAB = false;
         this.track2Offset = 0;
 
-        el.trackLabel.textContent = file.name;
         this.updateTransportEnabled();
         this.render();
         this.setStatus("");

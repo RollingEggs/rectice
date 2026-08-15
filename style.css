@@ -7,7 +7,6 @@
   --btn-shadow: #17130f;
   --cream: #d9cdb4;
   --cream-dim: #9c9284;
-  --orange: #c1502e;
   --orange-bright: #e2703f;
   --teal: #6fd9b0;
   --teal-dim: #3d7767;
@@ -16,7 +15,6 @@
   --red-dark: #3a140f;
   --red: #b83a1e;
   --red-bright: #e3652f;
-  --divider: #443a32;
 }
 
 * {
@@ -26,7 +24,7 @@
 /* No iOS selection callout ("コピー / 検索 / 翻訳") on long press, and
    manipulation drops the double-tap-to-zoom gesture. */
 html, body, .app, .btn, button, .lcd, .lcd-main, .lcd-sub, .slider-labels,
-.offset-readout, .track-label, .title, .status {
+.offset-readout, .status {
   -webkit-touch-callout: none;
   -webkit-user-select: none;
   -moz-user-select: none;
@@ -53,7 +51,7 @@ body {
   justify-content: center;
   align-items: flex-start;
   min-height: 100vh;
-  padding: 24px 12px;
+  padding: 12px 12px;
 }
 
 .app {
@@ -61,49 +59,9 @@ body {
   max-width: 460px;
   background: linear-gradient(180deg, var(--bg) 0%, #241e1a 100%);
   border-radius: 22px;
-  padding: 22px 20px 26px;
+  padding: 18px 20px 18px;
   box-shadow: 0 30px 60px rgba(0, 0, 0, 0.5);
   user-select: none;
-}
-
-.header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding-bottom: 14px;
-  border-bottom: 1px solid var(--divider);
-  margin-bottom: 20px;
-}
-
-.title {
-  margin: 0;
-  font-size: 20px;
-  letter-spacing: 2px;
-  font-weight: 800;
-}
-
-.title-tape {
-  color: var(--cream);
-}
-
-.title-rec {
-  color: var(--orange);
-}
-
-.header-right {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.track-label {
-  font-size: 12px;
-  letter-spacing: 2px;
-  color: var(--cream-dim);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 140px;
 }
 
 .icon-btn {
@@ -493,6 +451,18 @@ body {
   display: flex;
   flex-direction: column;
   gap: 26px;
+}
+
+/* INPUT MONITOR gives up the row's full width to make room for the file
+   loader now that the header it used to live in is gone. */
+.monitor-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.monitor-row .btn-toggle {
+  flex: 1;
 }
 
 .slider-block {
@@ -925,7 +895,7 @@ body {
   text-align: center;
   font-size: 12px;
   color: var(--cream-dim);
-  margin: 16px 0 0;
+  margin: 10px 0 0;
 }
 
 @media (max-width: 400px) {

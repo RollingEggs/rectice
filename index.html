@@ -12,27 +12,6 @@
 <body>
 <div class="app" id="app">
 
-  <header class="header">
-    <h1 class="title"><span class="title-tape">TAPE</span> <span class="title-rec">RECORDER</span></h1>
-    <div class="header-right">
-      <span class="track-label" id="trackLabel">NO TRACK</span>
-      <button class="icon-btn" id="loadBtn" title="音楽ファイルを読み込む" aria-label="音楽ファイルを読み込む">
-        <svg viewBox="0 0 24 24" width="22" height="22" fill="none">
-          <path d="M3 7.5C3 6.67 3.67 6 4.5 6H9.5L11.5 8H19.5C20.33 8 21 8.67 21 9.5V17.5C21 18.33 20.33 19 19.5 19H4.5C3.67 19 3 18.33 3 17.5V7.5Z"
-            stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
-        </svg>
-      </button>
-      <!-- Extensions are listed alongside the wildcards: some OS/browser combos fail to
-           map a file to its MIME type, which made audio files unselectable. -->
-      <input
-        type="file"
-        id="fileInput"
-        accept="audio/*,video/*,.mp3,.wav,.m4a,.aac,.flac,.ogg,.oga,.opus,.weba,.wma,.aif,.aiff,.mp4,.m4v,.mov,.webm,.mkv,.avi,.3gp,.wmv,.flv"
-        hidden
-      />
-    </div>
-  </header>
-
   <div class="lcd" id="lcd">
     <div class="lcd-row">
       <div class="lcd-main" id="timeDisplay">00:00.0</div>
@@ -129,11 +108,28 @@
       </div>
     </div>
 
-    <button class="btn btn-toggle" id="monitorBtn" aria-label="入力モニターの切り替え（長押しで入力デバイスを選択）">
-      <span class="dot" id="dotMonitor"></span>
-      <span>INPUT MONITOR</span>
-      <span class="toggle-state" id="monitorState">MUTED</span>
-    </button>
+    <div class="monitor-row">
+      <button class="btn btn-toggle" id="monitorBtn" aria-label="入力モニターの切り替え（長押しで入力デバイスを選択）">
+        <span class="dot" id="dotMonitor"></span>
+        <span>INPUT MONITOR</span>
+        <span class="toggle-state" id="monitorState">MUTED</span>
+      </button>
+
+      <button class="icon-btn" id="loadBtn" title="音楽ファイルを読み込む" aria-label="音楽ファイルを読み込む">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none">
+          <path d="M3 7.5C3 6.67 3.67 6 4.5 6H9.5L11.5 8H19.5C20.33 8 21 8.67 21 9.5V17.5C21 18.33 20.33 19 19.5 19H4.5C3.67 19 3 18.33 3 17.5V7.5Z"
+            stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+        </svg>
+      </button>
+      <!-- Extensions are listed alongside the wildcards: some OS/browser combos fail to
+           map a file to its MIME type, which made audio files unselectable. -->
+      <input
+        type="file"
+        id="fileInput"
+        accept="audio/*,video/*,.mp3,.wav,.m4a,.aac,.flac,.ogg,.oga,.opus,.weba,.wma,.aif,.aiff,.mp4,.m4v,.mov,.webm,.mkv,.avi,.3gp,.wmv,.flv"
+        hidden
+      />
+    </div>
   </div>
 
   <p class="status" id="statusMsg"></p>
