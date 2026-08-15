@@ -170,37 +170,39 @@
       <button class="btn btn-offset" id="beatsPlusBtn" aria-label="拍数を増やす">+</button>
     </div>
 
-    <div class="modal-row">
+    <div class="modal-block">
       <span class="modal-label">START</span>
-      <button class="btn btn-offset" id="countStartMinusBtn" aria-label="開始位置を5ms早める">−</button>
-      <span class="time-field">
-        <button class="btn btn-sign" id="countSignBtn" aria-label="先頭より前か後かを切り替え">−</button>
-        <input
-          class="modal-input time-input"
-          id="countMinInput"
-          type="number"
-          inputmode="numeric"
-          min="0"
-          max="5"
-          step="1"
-          value="0"
-          aria-label="分"
-        />
-        <span class="time-sep">:</span>
-        <input
-          class="modal-input time-input"
-          id="countSecInput"
-          type="number"
-          inputmode="numeric"
-          min="0"
-          max="59"
-          step="1"
-          value="02"
-          aria-label="秒"
-        />
-        <span class="time-frac" id="countFracValue">.00</span>
-      </span>
-      <button class="btn btn-offset" id="countStartPlusBtn" aria-label="開始位置を5ms遅らせる">+</button>
+      <div class="modal-block-row">
+        <button class="btn btn-offset" id="countStartMinusBtn" aria-label="開始位置を5ms早める">−</button>
+        <span class="time-field">
+          <button class="btn btn-sign" id="countSignBtn" aria-label="先頭より前か後かを切り替え">−</button>
+          <input
+            class="modal-input time-input"
+            id="countMinInput"
+            type="number"
+            inputmode="numeric"
+            min="0"
+            max="5"
+            step="1"
+            value="0"
+            aria-label="分"
+          />
+          <span class="time-sep">:</span>
+          <input
+            class="modal-input time-input"
+            id="countSecInput"
+            type="number"
+            inputmode="numeric"
+            min="0"
+            max="59"
+            step="1"
+            value="02"
+            aria-label="秒"
+          />
+          <span class="time-frac" id="countFracValue">.00</span>
+        </span>
+        <button class="btn btn-offset" id="countStartPlusBtn" aria-label="開始位置を5ms遅らせる">+</button>
+      </div>
     </div>
 
     <div class="modal-row">

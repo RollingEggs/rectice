@@ -654,6 +654,24 @@ body {
   color: var(--cream-dim);
 }
 
+/* START needs more room than a shared row allows, so its label sits above
+   and the time keeps the buttons company on a full-width line. */
+.modal-block {
+  margin-bottom: 12px;
+}
+
+.modal-block > .modal-label {
+  display: block;
+  margin-bottom: 8px;
+}
+
+.modal-block-row {
+  display: grid;
+  grid-template-columns: 40px 1fr 40px;
+  align-items: center;
+  gap: 10px;
+}
+
 .modal-value {
   font-family: "SF Mono", "DejaVu Sans Mono", Menlo, Consolas, monospace;
   font-size: 15px;
@@ -712,9 +730,9 @@ body {
 
 /* Qualified so it outranks .modal-input's width whatever the rule order. */
 .modal-input.time-input {
-  width: 36px;
-  padding: 8px 1px;
-  font-size: 14px;
+  width: 46px;
+  padding: 8px 2px;
+  font-size: 15px;
 }
 
 .time-sep,
@@ -769,10 +787,6 @@ body {
   .modal { padding: 20px 14px; }
   .modal-row { grid-template-columns: 42px 36px 1fr 36px; gap: 7px; }
   .modal-label { font-size: 10px; letter-spacing: 1px; }
-  .modal-input.time-input { width: 32px; font-size: 13px; }
-  .time-sep, .time-frac { font-size: 13px; }
-  .time-frac { min-width: 32px; }
-  .btn-sign { width: 22px; }
   .modal-input { width: 58px; }
 }
 
@@ -784,10 +798,7 @@ body {
 
   .modal-backdrop { padding: 10px; }
   .modal-row { grid-template-columns: 34px 32px 1fr 32px; gap: 5px; }
-  .modal-input.time-input { width: 30px; }
-  .time-sep { font-size: 12px; }
-  .time-frac { min-width: 28px; }
-  .btn-sign { width: 20px; }
+  .modal-input.time-input { width: 40px; }
 }
 
 @media (max-width: 380px) {
