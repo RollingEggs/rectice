@@ -13,7 +13,7 @@
   const OFFSET_STEP = 0.005; // 5ms per press
   const OFFSET_LIMIT = 1.0; // clamp track 2 shifting to +/- 1 second
   const COUNT_START_STEP = 0.005; // 5ms per press
-  const COUNT_START_LIMIT = 5.0; // count can begin up to 5s either side of the head
+  const COUNT_START_LIMIT = 300; // count can begin up to 5:00 either side of the head
   const BPM_MIN = 40;
   const BPM_MAX = 300;
   const BEATS_MIN = 1;
@@ -21,8 +21,9 @@
   const BEEP_HZ = 1000;
   const BEEP_PEAK = 0.5; // amplitude at 100% count volume
   const COUNT_VOL_STEP = 0.05;
-  const PREVIEW_SECONDS = 5; // how long a preview runs from the count start
-  const PREVIEW_MIN_AFTER_HEAD = 3; // ...but always this far past the head
+  const PREVIEW_TAIL = 3; // preview keeps playing this long past the last beat
+  const PREVIEW_MIN_AFTER_HEAD = 3; // ...and at least this far past the head
+  const PREVIEW_MAX = 15; // ...but never runs longer than this
   const BEEP_LEN = 0.09;
 
   const el = {
@@ -62,7 +63,10 @@
     countVolPlusBtn: document.getElementById("countVolPlusBtn"),
     beatsMinusBtn: document.getElementById("beatsMinusBtn"),
     beatsPlusBtn: document.getElementById("beatsPlusBtn"),
-    countStartInput: document.getElementById("countStartInput"),
+    countMinInput: document.getElementById("countMinInput"),
+    countSecInput: document.getElementById("countSecInput"),
+    countFracValue: document.getElementById("countFracValue"),
+    countSignBtn: document.getElementById("countSignBtn"),
     countStartMinusBtn: document.getElementById("countStartMinusBtn"),
     countStartPlusBtn: document.getElementById("countStartPlusBtn"),
     countInSummary: document.getElementById("countInSummary"),
@@ -127,6 +131,7 @@
       this.countInBpm = 120;
       this.countInBeats = 4;
       this.countInStart = -2.0; // timeline position of the first beep, seconds
+      this.countStartNegative = true; // kept separately so the sign survives 0
       this.countInVolume = 0.7;
       this.countInVoices = []; // scheduled beeps, so they can be cancelled
       this.previewTimer = null;
@@ -211,7 +216,9 @@
       this.bindRepeat(el.countVolMinusBtn, () => this.nudgeCountVolume(-1));
       this.bindRepeat(el.countVolPlusBtn, () => this.nudgeCountVolume(1));
       this.bindNumberInput(el.bpmInput, () => this.commitBpm());
-      this.bindNumberInput(el.countStartInput, () => this.commitCountStart());
+      this.bindNumberInput(el.countMinInput, () => this.commitCountStartFields());
+      this.bindNumberInput(el.countSecInput, () => this.commitCountStartFields());
+      el.countSignBtn.addEventListener("click", () => this.toggleCountStartSign());
 
       el.countInPreviewBtn.addEventListener("click", () => this.previewCountIn());
       el.countInCloseBtn.addEventListener("click", () => this.closeCountInModal());
@@ -1099,7 +1106,13 @@
       this.play(this.countInStart);
       this.scheduleCountIn(this.contextStartTime, this.startOffset);
 
-      const end = Math.max(this.countInStart + PREVIEW_SECONDS, PREVIEW_MIN_AFTER_HEAD);
+      // Run past the last beat and, when it is close by, past the head too —
+      // but cap it so a count set minutes early does not preview for minutes.
+      const lastBeat = this.countInStart + (this.countInBeats - 1) * (60 / this.countInBpm);
+      const end = Math.min(
+        Math.max(lastBeat + PREVIEW_TAIL, PREVIEW_MIN_AFTER_HEAD),
+        this.countInStart + PREVIEW_MAX
+      );
       this.previewTimer = setTimeout(() => {
         this.previewTimer = null;
         this.pause();
@@ -1141,7 +1154,7 @@
     /** Commits whatever is half-typed before a +/- press moves the value. */
     commitPendingInput() {
       const active = document.activeElement;
-      if (active === el.bpmInput || active === el.countStartInput) active.blur();
+      if (active && active.classList && active.classList.contains("modal-input")) active.blur();
     }
 
     commitBpm() {
@@ -1151,12 +1164,37 @@
       this.renderCountInModal();
     }
 
-    commitCountStart() {
-      const typed = parseFloat(el.countStartInput.value);
-      if (Number.isFinite(typed)) {
-        this.countInStart = toMs(clamp(typed, -COUNT_START_LIMIT, COUNT_START_LIMIT));
-      }
-      el.countStartInput.value = this.countInStart.toFixed(3);
+    setCountStart(seconds) {
+      this.countInStart = toMs(clamp(seconds, -COUNT_START_LIMIT, COUNT_START_LIMIT));
+      if (this.countInStart !== 0) this.countStartNegative = this.countInStart < 0;
+    }
+
+    /** Splits the position into the pieces the row shows. */
+    countStartParts() {
+      const totalMs = Math.round(Math.abs(this.countInStart) * 1000);
+      return {
+        min: Math.floor(totalMs / 60000),
+        sec: Math.floor((totalMs % 60000) / 1000),
+        ms: totalMs % 1000,
+      };
+    }
+
+    /** Typing minutes or seconds keeps whatever sub-second the buttons set. */
+    commitCountStartFields() {
+      const parts = this.countStartParts();
+      const min = clamp(intOr(el.countMinInput.value, parts.min), 0, 5);
+      const sec = clamp(intOr(el.countSecInput.value, parts.sec), 0, 59);
+
+      const magnitude = min * 60 + sec + parts.ms / 1000;
+      this.setCountStart(this.countStartNegative ? -magnitude : magnitude);
+      this.renderCountInModal();
+    }
+
+    toggleCountStartSign() {
+      this.commitPendingInput();
+      this.countStartNegative = !this.countStartNegative;
+      const magnitude = Math.abs(this.countInStart);
+      this.countInStart = this.countStartNegative ? -magnitude : magnitude;
       this.renderCountInModal();
     }
 
@@ -1179,24 +1217,27 @@
 
     nudgeCountStart(direction) {
       this.commitPendingInput();
-      const next = this.countInStart + direction * COUNT_START_STEP;
-      this.countInStart = toMs(clamp(next, -COUNT_START_LIMIT, COUNT_START_LIMIT));
+      this.setCountStart(this.countInStart + direction * COUNT_START_STEP);
       this.renderCountInModal();
     }
 
     renderCountInModal() {
+      const parts = this.countStartParts();
+
       // Leave a field alone while it is being typed into.
       if (document.activeElement !== el.bpmInput) el.bpmInput.value = String(this.countInBpm);
-      if (document.activeElement !== el.countStartInput) {
-        el.countStartInput.value = this.countInStart.toFixed(3);
-      }
+      if (document.activeElement !== el.countMinInput) el.countMinInput.value = String(parts.min);
+      if (document.activeElement !== el.countSecInput) el.countSecInput.value = pad2(parts.sec);
+
+      el.countFracValue.textContent = formatFraction(parts.ms);
+      el.countSignBtn.textContent = this.countStartNegative ? "−" : "+";
       el.beatsValue.textContent = String(this.countInBeats);
       el.countVolValue.textContent = Math.round(this.countInVolume * 100) + " %";
 
       const last = this.countInStart + (this.countInBeats - 1) * (60 / this.countInBpm);
       el.countInSummary.textContent =
-        `先頭を基準にした位置。${this.countInStart.toFixed(3)} 秒から ${this.countInBeats} 拍、` +
-        `最後の拍は ${last >= 0 ? "+" : ""}${last.toFixed(3)} 秒。`;
+        `先頭を基準にした位置。${formatCountTime(this.countInStart)} から ${this.countInBeats} 拍、` +
+        `最後の拍は ${formatCountTime(last)}。`;
     }
 
     // ---------- input level meter ----------
@@ -1348,6 +1389,28 @@
   /** Snaps to whole milliseconds, keeping repeated nudges free of float drift. */
   function toMs(seconds) {
     return Math.round(seconds * 1000) / 1000;
+  }
+
+  function intOr(text, fallback) {
+    const parsed = parseInt(text, 10);
+    return Number.isFinite(parsed) ? parsed : fallback;
+  }
+
+  /**
+   * Hundredths, as asked — but the buttons step in 5ms, so a value landing
+   * between hundredths shows its third digit rather than reading as a
+   * duplicate of the step either side of it.
+   */
+  function formatFraction(ms) {
+    return ms % 10 === 0 ? "." + pad2(ms / 10) : "." + String(ms).padStart(3, "0");
+  }
+
+  function formatCountTime(seconds) {
+    const sign = seconds < 0 ? "-" : "+";
+    const totalMs = Math.round(Math.abs(seconds) * 1000);
+    const mm = Math.floor(totalMs / 60000);
+    const ss = Math.floor((totalMs % 60000) / 1000);
+    return `${sign}${mm}:${pad2(ss)}${formatFraction(totalMs % 1000)}`;
   }
 
   function formatTime(seconds) {

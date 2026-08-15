@@ -173,19 +173,32 @@
     <div class="modal-row">
       <span class="modal-label">START</span>
       <button class="btn btn-offset" id="countStartMinusBtn" aria-label="開始位置を5ms早める">−</button>
-      <span class="modal-field">
+      <span class="time-field">
+        <button class="btn btn-sign" id="countSignBtn" aria-label="先頭より前か後かを切り替え">−</button>
         <input
-          class="modal-input"
-          id="countStartInput"
+          class="modal-input time-input"
+          id="countMinInput"
           type="number"
-          inputmode="decimal"
-          min="-5"
+          inputmode="numeric"
+          min="0"
           max="5"
-          step="0.005"
-          value="-2.000"
-          aria-label="カウント開始位置（秒）"
+          step="1"
+          value="0"
+          aria-label="分"
         />
-        <span class="modal-unit">s</span>
+        <span class="time-sep">:</span>
+        <input
+          class="modal-input time-input"
+          id="countSecInput"
+          type="number"
+          inputmode="numeric"
+          min="0"
+          max="59"
+          step="1"
+          value="02"
+          aria-label="秒"
+        />
+        <span class="time-frac" id="countFracValue">.00</span>
       </span>
       <button class="btn btn-offset" id="countStartPlusBtn" aria-label="開始位置を5ms遅らせる">+</button>
     </div>
