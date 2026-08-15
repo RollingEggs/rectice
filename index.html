@@ -178,16 +178,23 @@
           class="modal-input"
           id="countStartInput"
           type="number"
-          inputmode="numeric"
-          min="-5000"
-          max="5000"
-          step="5"
-          value="-2000"
-          aria-label="カウント開始位置（ミリ秒）"
+          inputmode="decimal"
+          min="-5"
+          max="5"
+          step="0.005"
+          value="-2.000"
+          aria-label="カウント開始位置（秒）"
         />
-        <span class="modal-unit">ms</span>
+        <span class="modal-unit">s</span>
       </span>
       <button class="btn btn-offset" id="countStartPlusBtn" aria-label="開始位置を5ms遅らせる">+</button>
+    </div>
+
+    <div class="modal-row">
+      <span class="modal-label">VOLUME</span>
+      <button class="btn btn-offset" id="countVolMinusBtn" aria-label="カウント音量を下げる">−</button>
+      <span class="modal-value" id="countVolValue">70 %</span>
+      <button class="btn btn-offset" id="countVolPlusBtn" aria-label="カウント音量を上げる">+</button>
     </div>
 
     <p class="modal-note" id="countInSummary">先頭を基準にした位置。マイナスで先頭より前から鳴ります。</p>

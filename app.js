@@ -19,6 +19,8 @@
   const BEATS_MIN = 1;
   const BEATS_MAX = 16;
   const BEEP_HZ = 1000;
+  const BEEP_PEAK = 0.5; // amplitude at 100% count volume
+  const COUNT_VOL_STEP = 0.05;
   const PREVIEW_SECONDS = 5; // how long a preview runs from the count start
   const PREVIEW_MIN_AFTER_HEAD = 3; // ...but always this far past the head
   const BEEP_LEN = 0.09;
@@ -55,6 +57,9 @@
     bpmMinusBtn: document.getElementById("bpmMinusBtn"),
     bpmPlusBtn: document.getElementById("bpmPlusBtn"),
     beatsValue: document.getElementById("beatsValue"),
+    countVolValue: document.getElementById("countVolValue"),
+    countVolMinusBtn: document.getElementById("countVolMinusBtn"),
+    countVolPlusBtn: document.getElementById("countVolPlusBtn"),
     beatsMinusBtn: document.getElementById("beatsMinusBtn"),
     beatsPlusBtn: document.getElementById("beatsPlusBtn"),
     countStartInput: document.getElementById("countStartInput"),
@@ -121,7 +126,8 @@
       this.countInEnabled = false;
       this.countInBpm = 120;
       this.countInBeats = 4;
-      this.countInStart = -2.0; // timeline position of the first beep
+      this.countInStart = -2.0; // timeline position of the first beep, seconds
+      this.countInVolume = 0.7;
       this.countInVoices = []; // scheduled beeps, so they can be cancelled
       this.previewTimer = null;
       this.previewResumeAt = 0;
@@ -202,6 +208,8 @@
       this.bindRepeat(el.beatsPlusBtn, () => this.nudgeBeats(1));
       this.bindRepeat(el.countStartMinusBtn, () => this.nudgeCountStart(-1));
       this.bindRepeat(el.countStartPlusBtn, () => this.nudgeCountStart(1));
+      this.bindRepeat(el.countVolMinusBtn, () => this.nudgeCountVolume(-1));
+      this.bindRepeat(el.countVolPlusBtn, () => this.nudgeCountVolume(1));
       this.bindNumberInput(el.bpmInput, () => this.commitBpm());
       this.bindNumberInput(el.countStartInput, () => this.commitCountStart());
 
@@ -1029,6 +1037,9 @@
     }
 
     playBeep(at) {
+      const peak = BEEP_PEAK * this.countInVolume;
+      if (peak <= 0.0001) return; // silent, and an exponential ramp needs > 0
+
       const ctx = this.audioCtx;
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
@@ -1038,7 +1049,7 @@
 
       // Short envelope, so it clicks like a metronome rather than blipping.
       gain.gain.setValueAtTime(0, at);
-      gain.gain.linearRampToValueAtTime(0.35, at + 0.004);
+      gain.gain.linearRampToValueAtTime(peak, at + 0.004);
       gain.gain.exponentialRampToValueAtTime(0.0008, at + BEEP_LEN);
 
       osc.connect(gain);
@@ -1141,11 +1152,17 @@
     }
 
     commitCountStart() {
-      const typed = parseInt(el.countStartInput.value, 10);
+      const typed = parseFloat(el.countStartInput.value);
       if (Number.isFinite(typed)) {
-        this.countInStart = clamp(typed / 1000, -COUNT_START_LIMIT, COUNT_START_LIMIT);
+        this.countInStart = toMs(clamp(typed, -COUNT_START_LIMIT, COUNT_START_LIMIT));
       }
-      el.countStartInput.value = String(Math.round(this.countInStart * 1000));
+      el.countStartInput.value = this.countInStart.toFixed(3);
+      this.renderCountInModal();
+    }
+
+    nudgeCountVolume(direction) {
+      this.commitPendingInput();
+      this.countInVolume = clamp(this.countInVolume + direction * COUNT_VOL_STEP, 0, 1);
       this.renderCountInModal();
     }
 
@@ -1163,20 +1180,23 @@
     nudgeCountStart(direction) {
       this.commitPendingInput();
       const next = this.countInStart + direction * COUNT_START_STEP;
-      this.countInStart = clamp(next, -COUNT_START_LIMIT, COUNT_START_LIMIT);
+      this.countInStart = toMs(clamp(next, -COUNT_START_LIMIT, COUNT_START_LIMIT));
       this.renderCountInModal();
     }
 
     renderCountInModal() {
-      const ms = Math.round(this.countInStart * 1000);
       // Leave a field alone while it is being typed into.
       if (document.activeElement !== el.bpmInput) el.bpmInput.value = String(this.countInBpm);
-      if (document.activeElement !== el.countStartInput) el.countStartInput.value = String(ms);
+      if (document.activeElement !== el.countStartInput) {
+        el.countStartInput.value = this.countInStart.toFixed(3);
+      }
       el.beatsValue.textContent = String(this.countInBeats);
+      el.countVolValue.textContent = Math.round(this.countInVolume * 100) + " %";
 
-      const endMs = Math.round((this.countInStart + (this.countInBeats - 1) * (60 / this.countInBpm)) * 1000);
+      const last = this.countInStart + (this.countInBeats - 1) * (60 / this.countInBpm);
       el.countInSummary.textContent =
-        `先頭を基準にした位置。${ms} ms から ${this.countInBeats} 拍、最後の拍は ${endMs > 0 ? "+" : ""}${endMs} ms。`;
+        `先頭を基準にした位置。${this.countInStart.toFixed(3)} 秒から ${this.countInBeats} 拍、` +
+        `最後の拍は ${last >= 0 ? "+" : ""}${last.toFixed(3)} 秒。`;
     }
 
     // ---------- input level meter ----------
@@ -1323,6 +1343,11 @@
 
   function clamp(value, min, max) {
     return Math.max(min, Math.min(max, value));
+  }
+
+  /** Snaps to whole milliseconds, keeping repeated nudges free of float drift. */
+  function toMs(seconds) {
+    return Math.round(seconds * 1000) / 1000;
   }
 
   function formatTime(seconds) {
