@@ -528,6 +528,8 @@
         el.track2MuteBtn, // there's no track 2 to mute until a file loads
         el.balanceSlider,
         el.panSlider,
+        el.countInBtn,
+        el.monitorBtn,
       ].forEach((b) => (b.disabled = !ready));
 
       // The clock and marker times read as a powered-off LCD until then too.
