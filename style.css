@@ -39,8 +39,15 @@ html {
   -webkit-text-size-adjust: 100%;
 }
 
+/* The page is sized to fit exactly (see .app), so there's nothing to
+   scroll to — overflow:hidden stops any stray sub-pixel scroll, and
+   overscroll-behavior kills iOS's rubber-band bounce on top of that.
+   Elements with their own overflow:auto (like .device-list) are a
+   separate scroll context and are unaffected. */
 html, body {
   height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
 }
 
 body {
