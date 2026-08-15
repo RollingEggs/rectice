@@ -143,6 +143,49 @@
   <div class="modal" role="dialog" aria-modal="true" aria-label="カウントイン設定">
     <h2 class="modal-title">COUNT IN</h2>
 
+    <div class="modal-block-row">
+      <button class="btn btn-offset" id="countStartMinusBtn" aria-label="開始位置を1ms早める">−</button>
+      <span class="time-field">
+        <button class="btn-sign" id="countSignBtn" aria-label="先頭より前か後かを切り替え">−</button>
+        <input
+          class="modal-input time-input"
+          id="countMinInput"
+          type="number"
+          inputmode="numeric"
+          min="0"
+          max="5"
+          step="1"
+          value="0"
+          aria-label="分"
+        />
+        <span class="time-sep">:</span>
+        <input
+          class="modal-input time-input"
+          id="countSecInput"
+          type="number"
+          inputmode="numeric"
+          min="0"
+          max="59"
+          step="1"
+          value="02"
+          aria-label="秒"
+        />
+        <span class="time-sep">.</span>
+        <input
+          class="modal-input time-input time-ms-input"
+          id="countMsInput"
+          type="number"
+          inputmode="numeric"
+          min="0"
+          max="999"
+          step="1"
+          value="000"
+          aria-label="ミリ秒"
+        />
+      </span>
+      <button class="btn btn-offset" id="countStartPlusBtn" aria-label="開始位置を1ms遅らせる">+</button>
+    </div>
+
     <div class="modal-row">
       <span class="modal-label">TEMPO</span>
       <button class="btn btn-offset" id="bpmMinusBtn" aria-label="テンポを下げる">−</button>
@@ -168,41 +211,6 @@
       <button class="btn btn-offset" id="beatsMinusBtn" aria-label="拍数を減らす">−</button>
       <span class="modal-value" id="beatsValue">4</span>
       <button class="btn btn-offset" id="beatsPlusBtn" aria-label="拍数を増やす">+</button>
-    </div>
-
-    <div class="modal-block">
-      <span class="modal-label">START</span>
-      <div class="modal-block-row">
-        <button class="btn btn-offset" id="countStartMinusBtn" aria-label="開始位置を1ms早める">−</button>
-        <span class="time-field">
-          <button class="btn-sign" id="countSignBtn" aria-label="先頭より前か後かを切り替え">−</button>
-          <input
-            class="modal-input time-input"
-            id="countMinInput"
-            type="number"
-            inputmode="numeric"
-            min="0"
-            max="5"
-            step="1"
-            value="0"
-            aria-label="分"
-          />
-          <span class="time-sep">:</span>
-          <input
-            class="modal-input time-input"
-            id="countSecInput"
-            type="number"
-            inputmode="numeric"
-            min="0"
-            max="59"
-            step="1"
-            value="02"
-            aria-label="秒"
-          />
-          <span class="time-frac" id="countFracValue">.000</span>
-        </span>
-        <button class="btn btn-offset" id="countStartPlusBtn" aria-label="開始位置を1ms遅らせる">+</button>
-      </div>
     </div>
 
     <div class="modal-row">

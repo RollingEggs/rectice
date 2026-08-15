@@ -65,7 +65,7 @@
     beatsPlusBtn: document.getElementById("beatsPlusBtn"),
     countMinInput: document.getElementById("countMinInput"),
     countSecInput: document.getElementById("countSecInput"),
-    countFracValue: document.getElementById("countFracValue"),
+    countMsInput: document.getElementById("countMsInput"),
     countSignBtn: document.getElementById("countSignBtn"),
     countStartMinusBtn: document.getElementById("countStartMinusBtn"),
     countStartPlusBtn: document.getElementById("countStartPlusBtn"),
@@ -217,6 +217,7 @@
       this.bindNumberInput(el.bpmInput, () => this.commitBpm());
       this.bindNumberInput(el.countMinInput, () => this.commitCountStartFields());
       this.bindNumberInput(el.countSecInput, () => this.commitCountStartFields());
+      this.bindNumberInput(el.countMsInput, () => this.commitCountStartFields());
       el.countSignBtn.addEventListener("click", () => this.toggleCountStartSign());
 
       el.countInPreviewBtn.addEventListener("click", () => this.previewCountIn());
@@ -1178,13 +1179,14 @@
       };
     }
 
-    /** Typing minutes or seconds keeps whatever sub-second the buttons set. */
+    /** Typing any of minutes, seconds, or milliseconds keeps the other two as they are. */
     commitCountStartFields() {
       const parts = this.countStartParts();
       const min = clamp(intOr(el.countMinInput.value, parts.min), 0, 5);
       const sec = clamp(intOr(el.countSecInput.value, parts.sec), 0, 59);
+      const ms = clamp(intOr(el.countMsInput.value, parts.ms), 0, 999);
 
-      const magnitude = min * 60 + sec + parts.ms / 1000;
+      const magnitude = min * 60 + sec + ms / 1000;
       this.setCountStart(this.countStartNegative ? -magnitude : magnitude);
       this.renderCountInModal();
     }
@@ -1235,8 +1237,8 @@
       if (document.activeElement !== el.bpmInput) el.bpmInput.value = String(this.countInBpm);
       if (document.activeElement !== el.countMinInput) el.countMinInput.value = String(parts.min);
       if (document.activeElement !== el.countSecInput) el.countSecInput.value = pad2(parts.sec);
+      if (document.activeElement !== el.countMsInput) el.countMsInput.value = pad3(parts.ms);
 
-      el.countFracValue.textContent = formatFraction(parts.ms);
       el.countSignBtn.textContent = this.countStartNegative ? "−" : "+";
       el.beatsValue.textContent = String(this.countInBeats);
       el.countVolValue.textContent = Math.round(this.countInVolume * 100) + " %";
@@ -1398,11 +1400,6 @@
     return Number.isFinite(parsed) ? parsed : fallback;
   }
 
-  /** Milliseconds within the second, always three digits: .000, .001, .002 ... */
-  function formatFraction(ms) {
-    return "." + String(ms).padStart(3, "0");
-  }
-
   function formatTime(seconds) {
     if (!isFinite(seconds)) seconds = 0;
     const sign = seconds < 0 ? "-" : ""; // the count-in runs before the head
@@ -1423,6 +1420,10 @@
 
   function pad2(n) {
     return n < 10 ? "0" + n : String(n);
+  }
+
+  function pad3(n) {
+    return String(n).padStart(3, "0");
   }
 
   window.tapeRecorderApp = new TapeRecorder();

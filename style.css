@@ -656,15 +656,6 @@ body {
 
 /* START needs more room than a shared row allows, so its label sits above
    and the time keeps the buttons company on a full-width line. */
-.modal-block {
-  margin-bottom: 12px;
-}
-
-.modal-block > .modal-label {
-  display: block;
-  margin-bottom: 8px;
-}
-
 /*
  * Flex, not grid: a `1fr` middle column stays full-width regardless of gap,
  * so the +/- buttons would stay pinned to the row's edges no matter how
@@ -676,6 +667,7 @@ body {
   align-items: center;
   justify-content: center;
   gap: 8px;
+  margin-bottom: 18px;
 }
 
 /* .btn-offset has no width of its own outside a grid column, unlike the
@@ -748,16 +740,16 @@ body {
   font-size: 15px;
 }
 
-.time-sep,
-.time-frac {
+.time-sep {
   font-family: "SF Mono", "DejaVu Sans Mono", Menlo, Consolas, monospace;
   font-size: 14px;
   color: var(--teal);
 }
 
-.time-frac {
-  min-width: 34px;
-  text-align: left;
+/* Three digits (milliseconds) need a touch more room than the two-digit
+   minute/second boxes. */
+.modal-input.time-ms-input {
+  width: 44px;
 }
 
 /*
@@ -823,6 +815,7 @@ body {
   .modal-backdrop { padding: 10px; }
   .modal-row { grid-template-columns: 34px 32px 1fr 32px; gap: 5px; }
   .modal-input.time-input { width: 40px; }
+  .modal-input.time-ms-input { width: 44px; }
 }
 
 @media (max-width: 380px) {
