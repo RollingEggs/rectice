@@ -67,14 +67,8 @@
   </div>
 
   <div class="marker-row marker-row-mix">
-    <button class="btn btn-toggle btn-toggle-compact" id="track2MuteBtn" aria-label="録音トラックのミュート切り替え">
-      <span class="toggle-head"><span class="dot set" id="dotTrack2"></span>REC TRACK</span>
-      <span class="toggle-state" id="track2State">ON</span>
-    </button>
-    <button class="btn btn-toggle btn-toggle-compact" id="countInBtn" aria-label="カウントイン（長押しで設定）">
-      <span class="toggle-head"><span class="dot" id="dotCountIn"></span>COUNT IN</span>
-      <span class="toggle-state" id="countInState">OFF</span>
-    </button>
+    <button class="btn btn-toggle btn-toggle-compact btn-toggle-mute" id="track2MuteBtn" aria-label="録音トラックのミュート切り替え">REC TRACK MUTE</button>
+    <button class="btn btn-toggle btn-toggle-compact btn-toggle-countin" id="countInBtn" aria-label="カウントイン（長押しで設定）">COUNT IN</button>
     <button class="btn btn-small" id="loopABBtn">A&#8644;B</button>
   </div>
 
@@ -110,11 +104,7 @@
     </div>
 
     <div class="monitor-row">
-      <button class="btn btn-toggle" id="monitorBtn" aria-label="入力モニターの切り替え（長押しで入力デバイスを選択）">
-        <span class="dot" id="dotMonitor"></span>
-        <span>INPUT MONITOR</span>
-        <span class="toggle-state" id="monitorState">MUTED</span>
-      </button>
+      <button class="btn btn-toggle btn-toggle-monitor" id="monitorBtn" aria-label="入力モニターの切り替え（長押しで入力デバイスを選択）">INPUT MONITOR</button>
 
       <button class="icon-btn" id="loadBtn" title="音楽ファイルを読み込む" aria-label="音楽ファイルを読み込む">
         <svg viewBox="0 0 24 24" width="22" height="22" fill="none">

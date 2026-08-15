@@ -568,67 +568,53 @@ body {
 }
 
 /* Shared by the input-monitor and recorded-track toggles. */
+/*
+ * Off/inactive is one flat, unlit look shared by all three toggles — same
+ * treatment whether the toggle itself is off or the button is genuinely
+ * disabled pre-load, so there's no visual difference to explain. On is a
+ * solid colour fill per button instead of a shared accent: each one glows
+ * a different colour so REC TRACK MUTE / COUNT IN / INPUT MONITOR read at
+ * a glance without a separate ON/OFF text label.
+ */
 .btn-toggle {
   height: 54px;
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 0 18px;
+  justify-content: center;
+  text-align: center;
+  padding: 0 14px;
   font-size: 13px;
   letter-spacing: 1.5px;
   color: var(--cream-dim);
   min-width: 0; /* lets it share a grid row without overflowing */
+  transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
 }
 
-/* Narrow enough that the label and state have to stack. */
+/* Narrow enough that REC TRACK MUTE wraps onto a second line. */
 .btn-toggle-compact {
   height: 72px;
-  flex-direction: column;
-  justify-content: center;
-  gap: 6px;
-  padding: 0 6px;
-  font-size: 10px;
+  padding: 0 8px;
+  font-size: 11px;
+  line-height: 1.4;
   letter-spacing: 0.5px;
 }
 
-.btn-toggle-compact .toggle-head {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  white-space: nowrap;
+.btn-toggle-mute.on {
+  color: #2a2108;
+  background: linear-gradient(160deg, #ecd35e, #cc9f2c);
+  box-shadow: 0 3px 0 var(--btn-shadow), 0 0 16px rgba(230, 190, 60, 0.55);
 }
 
-/* Outranks the wide layout's `margin-left: auto` regardless of rule order. */
-.btn-toggle.btn-toggle-compact .toggle-state {
-  margin-left: 0;
-  font-size: 12px;
+.btn-toggle-countin.on {
+  color: #0e2417;
+  background: linear-gradient(160deg, #6fe0a0, #34a866);
+  box-shadow: 0 3px 0 var(--btn-shadow), 0 0 16px rgba(90, 216, 140, 0.5);
 }
 
-.btn-toggle .toggle-state {
-  margin-left: auto;
-  font-family: "SF Mono", "DejaVu Sans Mono", Menlo, Consolas, monospace;
-  color: var(--cream-dim);
-}
-
-.btn-toggle.on {
-  color: var(--cream);
-  box-shadow: 0 3px 0 var(--btn-shadow), 0 0 12px rgba(111, 217, 176, 0.3);
-}
-
-.btn-toggle.on .toggle-state {
-  color: var(--teal);
-}
-
-/* REC TRACK defaults to "on" before any file loads, but there's no track 2
-   yet for that to mean anything — the disabled state overrides .on's glow
-   back to the same flat, unlit look as every other disabled button. */
-.btn-toggle.on:disabled {
-  color: var(--cream-dim);
-  box-shadow: 0 3px 0 var(--btn-shadow), 0 6px 10px rgba(0, 0, 0, 0.35);
-}
-
-.btn-toggle.on:disabled .toggle-state {
-  color: var(--cream-dim);
+.btn-toggle-monitor.on {
+  color: #08232c;
+  background: linear-gradient(160deg, #7fe1f2, #35aecb);
+  box-shadow: 0 3px 0 var(--btn-shadow), 0 0 16px rgba(90, 210, 232, 0.5);
 }
 
 .slider {

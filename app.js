@@ -52,8 +52,6 @@
     markerBLabel: document.getElementById("markerBLabel"),
     loopABBtn: document.getElementById("loopABBtn"),
     countInBtn: document.getElementById("countInBtn"),
-    countInState: document.getElementById("countInState"),
-    dotCountIn: document.getElementById("dotCountIn"),
     countInModal: document.getElementById("countInModal"),
     bpmInput: document.getElementById("bpmInput"),
     bpmMinusBtn: document.getElementById("bpmMinusBtn"),
@@ -73,11 +71,7 @@
     countInPreviewBtn: document.getElementById("countInPreviewBtn"),
     countInCloseBtn: document.getElementById("countInCloseBtn"),
     track2MuteBtn: document.getElementById("track2MuteBtn"),
-    track2State: document.getElementById("track2State"),
-    dotTrack2: document.getElementById("dotTrack2"),
     monitorBtn: document.getElementById("monitorBtn"),
-    monitorState: document.getElementById("monitorState"),
-    dotMonitor: document.getElementById("dotMonitor"),
     deviceModal: document.getElementById("deviceModal"),
     deviceList: document.getElementById("deviceList"),
     deviceHint: document.getElementById("deviceHint"),
@@ -1530,8 +1524,6 @@
       el.countInPreviewBtn.textContent = this.previewTimer ? "STOP" : "PREVIEW";
 
       el.countInBtn.classList.toggle("on", this.countInEnabled);
-      el.dotCountIn.classList.toggle("set", this.countInEnabled);
-      el.countInState.textContent = this.countInEnabled ? "ON" : "OFF";
 
       // A set marker turns into its own play-from button.
       el.markerALabel.textContent = this.markerA != null ? "▶A" : "A";
@@ -1546,13 +1538,11 @@
       this.renderScrubStage(el.rewindBtn, -1);
       this.renderScrubStage(el.ffBtn, 1);
 
-      el.track2MuteBtn.classList.toggle("on", !this.track2Muted);
-      el.dotTrack2.classList.toggle("set", !this.track2Muted);
-      el.track2State.textContent = this.track2Muted ? "MUTED" : "ON";
+      // "on" now means the mute itself is engaged — the button lights up
+      // when it's actively muting, not when audio is passing through.
+      el.track2MuteBtn.classList.toggle("on", this.track2Muted);
 
       el.monitorBtn.classList.toggle("on", !this.monitorMuted);
-      el.dotMonitor.classList.toggle("set", !this.monitorMuted);
-      el.monitorState.textContent = this.monitorMuted ? "MUTED" : "ON";
 
       const ms = Math.round(this.track2Offset * 1000);
       el.offsetReadout.textContent = (ms > 0 ? "+" : "") + ms + " ms";
