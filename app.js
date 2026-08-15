@@ -137,7 +137,7 @@
       this.countInEnabled = false;
       this.countInBpm = 120;
       this.countInBeats = 4;
-      this.countInStart = -2.0; // timeline position of the first beep, seconds
+      this.countInStart = 0; // timeline position of the first beep, seconds
       this.countStartNegative = true; // kept separately so the sign survives 0
       this.countInVolume = 0.7;
       this.countInVoices = []; // scheduled beeps, so they can be cancelled

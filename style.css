@@ -338,6 +338,12 @@ body {
   100% { transform: scale(2.7); opacity: 0; border-width: 1px; }
 }
 
+/*
+ * Idle look matches the pre-load (disabled) button exactly — same 0.4
+ * opacity — so loading a track doesn't make REC start glowing on its own.
+ * Only .armed and .recording (and an active .holding press) light it back
+ * up; the ripples live outside this button, so dimming it doesn't touch them.
+ */
 .rec-btn {
   width: 100%;
   height: 100%;
@@ -349,9 +355,17 @@ body {
   background: radial-gradient(circle at 50% 42%, #7a2214, #2c0f09 78%);
   box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.4), 0 10px 24px rgba(0, 0, 0, 0.45),
     inset 0 0 24px rgba(0, 0, 0, 0.55);
+  opacity: 0.4;
+  transition: opacity 0.15s ease;
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.rec-btn.armed,
+.rec-btn.recording,
+.rec-btn.holding {
+  opacity: 1;
 }
 
 .rec-btn-inner {
