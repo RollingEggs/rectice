@@ -12,7 +12,7 @@
   const METER_PEAK_HOLD_MS = 900;
   const OFFSET_STEP = 0.005; // 5ms per press
   const OFFSET_LIMIT = 1.0; // clamp track 2 shifting to +/- 1 second
-  const COUNT_START_STEP = 0.005; // 5ms per press
+  const COUNT_START_STEP = 0.001; // 1ms per press
   const COUNT_START_LIMIT = 300; // count can begin up to 5:00 either side of the head
   const BPM_MIN = 40;
   const BPM_MAX = 300;
@@ -1215,9 +1215,17 @@
       this.renderCountInModal();
     }
 
+    /**
+     * Steps the magnitude, not the raw signed value: + always reads as further
+     * from the head and - as closer, on whichever side the sign toggle has
+     * picked. Stepping the signed value instead would make + count down
+     * whenever the position is negative, since adding gets it closer to
+     * zero — mechanically correct but backwards from what the button says.
+     */
     nudgeCountStart(direction) {
       this.commitPendingInput();
-      this.setCountStart(this.countInStart + direction * COUNT_START_STEP);
+      const magnitude = clamp(Math.abs(this.countInStart) + direction * COUNT_START_STEP, 0, COUNT_START_LIMIT);
+      this.countInStart = toMs(this.countStartNegative ? -magnitude : magnitude);
       this.renderCountInModal();
     }
 
@@ -1396,13 +1404,9 @@
     return Number.isFinite(parsed) ? parsed : fallback;
   }
 
-  /**
-   * Hundredths, as asked — but the buttons step in 5ms, so a value landing
-   * between hundredths shows its third digit rather than reading as a
-   * duplicate of the step either side of it.
-   */
+  /** Milliseconds within the second, always three digits: .000, .001, .002 ... */
   function formatFraction(ms) {
-    return ms % 10 === 0 ? "." + pad2(ms / 10) : "." + String(ms).padStart(3, "0");
+    return "." + String(ms).padStart(3, "0");
   }
 
   function formatCountTime(seconds) {
