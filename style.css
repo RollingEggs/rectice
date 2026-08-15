@@ -665,11 +665,24 @@ body {
   margin-bottom: 8px;
 }
 
+/*
+ * Flex, not grid: a `1fr` middle column stays full-width regardless of gap,
+ * so the +/- buttons would stay pinned to the row's edges no matter how
+ * tight the gap got. Centering the row as a flex group keeps the buttons
+ * right up against the time field instead.
+ */
 .modal-block-row {
-  display: grid;
-  grid-template-columns: 40px 1fr 40px;
+  display: flex;
   align-items: center;
-  gap: 10px;
+  justify-content: center;
+  gap: 8px;
+}
+
+/* .btn-offset has no width of its own outside a grid column, unlike the
+   other rows' +/- buttons — set it explicitly to match them. */
+.modal-block-row .btn-offset {
+  flex: none;
+  width: 40px;
 }
 
 .modal-value {
@@ -730,8 +743,8 @@ body {
 
 /* Qualified so it outranks .modal-input's width whatever the rule order. */
 .modal-input.time-input {
-  width: 46px;
-  padding: 8px 2px;
+  width: 38px;
+  padding: 8px 1px;
   font-size: 15px;
 }
 
