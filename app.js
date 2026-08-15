@@ -1,6 +1,7 @@
 (() => {
   "use strict";
 
+  const SETTINGS_STORAGE_KEY = "tapeRecorder.settings.v1";
   const REC_BUFFER_SIZE = 2048;
   const HOLD_MS = 800; // press-and-hold threshold, shared by every button
   const RIPPLE_MS = 1500; // covers the last ripple's delay + duration
@@ -158,6 +159,8 @@
       this.meterPeak = 0;
       this.meterPeakAt = 0;
 
+      this.loadPersistedSettings();
+
       this.buildMeter();
       this.bindUI();
       this.updateTransportEnabled();
@@ -165,6 +168,70 @@
     }
 
     // ---------- setup ----------
+
+    /**
+     * Restores mixer/count-in/device preferences saved by a previous visit.
+     * Deliberately excludes the loaded track, recorded audio, and markers —
+     * those belong to a specific session, not a standing preference.
+     */
+    loadPersistedSettings() {
+      let saved = null;
+      try {
+        const raw = localStorage.getItem(SETTINGS_STORAGE_KEY);
+        saved = raw ? JSON.parse(raw) : null;
+      } catch (e) {
+        saved = null; // private browsing, storage disabled, corrupt JSON, etc.
+      }
+      if (!saved || typeof saved !== "object") return;
+
+      if (typeof saved.balance === "number") this.balance = clamp(saved.balance, -1, 1);
+      if (typeof saved.pan === "number") this.pan = clamp(saved.pan, -1, 1);
+      if (typeof saved.track2Offset === "number") {
+        this.track2Offset = clamp(saved.track2Offset, -OFFSET_LIMIT, OFFSET_LIMIT);
+      }
+      if (typeof saved.track2Muted === "boolean") this.track2Muted = saved.track2Muted;
+      if (typeof saved.monitorMuted === "boolean") this.monitorMuted = saved.monitorMuted;
+      if (typeof saved.countInEnabled === "boolean") this.countInEnabled = saved.countInEnabled;
+      if (typeof saved.countInBpm === "number") this.countInBpm = clamp(saved.countInBpm, BPM_MIN, BPM_MAX);
+      if (typeof saved.countInBeats === "number") {
+        this.countInBeats = clamp(saved.countInBeats, BEATS_MIN, BEATS_MAX);
+      }
+      if (typeof saved.countInStart === "number") {
+        this.countInStart = clamp(saved.countInStart, -COUNT_START_LIMIT, COUNT_START_LIMIT);
+      }
+      if (typeof saved.countStartNegative === "boolean") this.countStartNegative = saved.countStartNegative;
+      if (typeof saved.countInVolume === "number") this.countInVolume = clamp(saved.countInVolume, 0, 1);
+      if (typeof saved.inputDeviceId === "string") this.inputDeviceId = saved.inputDeviceId;
+
+      // The sliders' DOM value has to be set explicitly — unlike the toggle
+      // buttons, they aren't redrawn from state by render().
+      el.balanceSlider.value = String(this.balance);
+      el.panSlider.value = String(this.pan);
+    }
+
+    persistSettings() {
+      try {
+        localStorage.setItem(
+          SETTINGS_STORAGE_KEY,
+          JSON.stringify({
+            balance: this.balance,
+            pan: this.pan,
+            track2Offset: this.track2Offset,
+            track2Muted: this.track2Muted,
+            monitorMuted: this.monitorMuted,
+            countInEnabled: this.countInEnabled,
+            countInBpm: this.countInBpm,
+            countInBeats: this.countInBeats,
+            countInStart: this.countInStart,
+            countStartNegative: this.countStartNegative,
+            countInVolume: this.countInVolume,
+            inputDeviceId: this.inputDeviceId,
+          })
+        );
+      } catch (e) {
+        // storage full or unavailable — settings just won't persist this time
+      }
+    }
 
     ensureAudioCtx() {
       if (!this.audioCtx) {
@@ -279,10 +346,12 @@
       el.balanceSlider.addEventListener("input", () => {
         this.balance = parseFloat(el.balanceSlider.value);
         this.applyBalance();
+        this.persistSettings();
       });
       el.panSlider.addEventListener("input", () => {
         this.pan = parseFloat(el.panSlider.value);
         this.applyPan();
+        this.persistSettings();
       });
     }
 
@@ -635,6 +704,7 @@
         this.stopTrack2Playback();
         this.startTrack2Source(this.getPlayhead());
       }
+      this.persistSettings();
       this.render();
     }
 
@@ -899,7 +969,19 @@
     /** Opens the default input if no mic is open yet; leaves an already-open one alone. */
     async ensureMic() {
       if (this.micStream) return;
-      await this.openMic(this.inputDeviceId);
+      try {
+        await this.openMic(this.inputDeviceId);
+      } catch (err) {
+        if (this.inputDeviceId === null) throw err;
+        // A device restored from a previous visit may no longer exist
+        // (unplugged, browser restarted, OS reassigned it) — fall back to
+        // the system default instead of surfacing an error for a device
+        // the user never chose to remove.
+        console.warn("saved input device unavailable, falling back to default", err);
+        this.inputDeviceId = null;
+        this.persistSettings();
+        await this.openMic(null);
+      }
     }
 
     /**
@@ -1007,6 +1089,7 @@
         return;
       }
       this.setStatus(`入力を「${this.inputDeviceLabel}」に切り替えました`, 2500);
+      this.persistSettings();
       this.renderDeviceList();
       this.render();
     }
@@ -1120,6 +1203,7 @@
         nextMuted ? "入力モニターをミュートしました" : "入力モニターON - ハウリングに注意",
         2200
       );
+      this.persistSettings();
       this.render();
     }
 
@@ -1141,6 +1225,7 @@
         this.track2Muted ? "録音トラックをミュートしました" : "録音トラックのミュートを解除しました",
         2000
       );
+      this.persistSettings();
       this.render();
     }
 
@@ -1204,6 +1289,7 @@
         this.countInEnabled ? "カウントインON - 長押しで設定" : "カウントインOFF",
         1800
       );
+      this.persistSettings();
       this.render();
     }
 
@@ -1423,6 +1509,10 @@
       el.countSignBtn.textContent = this.countStartNegative ? "−" : "+";
       el.beatsValue.textContent = String(this.countInBeats);
       el.countVolValue.textContent = Math.round(this.countInVolume * 100) + " %";
+
+      // Every count-in mutator (BPM, beats, start, sign, volume) ends by
+      // calling this, so persisting here covers all of them from one spot.
+      this.persistSettings();
     }
 
     // ---------- input level meter ----------
