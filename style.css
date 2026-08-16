@@ -1015,14 +1015,16 @@ body {
   .mixer { grid-area: mixer; gap: 10px; padding: 10px 16px; }
   .status { grid-area: status; margin-top: 2px; min-height: 0; font-size: 11px; }
 
-  /* The LCD collapsing to 2 rows (from 3) frees up vertical room in the
-     left column, spent here on taller transport buttons rather than left
-     as empty space. */
+  /* The LCD collapsing to a single row frees up vertical room in the left
+     column. Scale transport, REC, and the markers up together (same ~1.33x
+     factor applied to each) rather than only stretching transport taller —
+     growing one control alone threw off the proportions between it and its
+     neighbors. */
   .lcd-main { font-size: 32px; }
-  .btn-transport { height: 150px; }
-  .rec-wrap { width: 86px; height: 86px; }
-  .rec-btn-inner { width: 56px; height: 56px; }
-  .btn-marker { font-size: 16px; }
+  .btn-transport { height: 104px; }
+  .rec-wrap { width: 114px; height: 114px; }
+  .rec-btn-inner { width: 75px; height: 75px; }
+  .btn-marker { font-size: 21px; }
   .btn-toggle-compact { height: 44px; font-size: 10px; }
   .btn-small { height: 44px; }
   .slider-block { gap: 5px; }
