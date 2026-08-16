@@ -39,14 +39,13 @@ html {
   -webkit-text-size-adjust: 100%;
 }
 
-/* The page is sized to fit exactly (see .app), so there's nothing to
-   scroll to — overflow:hidden stops any stray sub-pixel scroll, and
-   overscroll-behavior kills iOS's rubber-band bounce on top of that.
-   Elements with their own overflow:auto (like .device-list) are a
-   separate scroll context and are unaffected. */
+/* Portrait on the device this was sized for has nothing to scroll to, but
+   landscape (or any shorter viewport) needs to reach controls below the
+   fold, so scrolling stays available rather than clipping them off-screen.
+   overscroll-behavior still kills iOS's rubber-band bounce at the scroll
+   boundaries, whether or not there's actually anything to scroll. */
 html, body {
   height: 100%;
-  overflow: hidden;
   overscroll-behavior: none;
 }
 
