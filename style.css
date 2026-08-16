@@ -990,24 +990,24 @@ body {
     align-items: start;
   }
 
-  /* LCD now spans the full width, so the time+meter row and the
-     markers/paw/filename row (previously 3 stacked lines: time, markers,
-     filename) fit as 2 wide rows instead — the markers and filename share
-     a row side by side rather than each needing a line of their own. */
+  /* LCD now spans the full width, so time+meter, markers+paw, and the
+     filename (previously 3 stacked lines) all fit on one wide row. Only
+     the filename gives up width when it's the odd one out — time/meter/
+     markers/paw stay full size and it truncates first via its existing
+     ellipsis, which is fine to lose if the name doesn't fit. */
   .lcd {
     grid-area: lcd;
     margin-bottom: 0;
     padding: 8px 16px;
-    display: grid;
-    grid-template-columns: auto 1fr;
+    display: flex;
+    flex-direction: row;
     align-items: center;
-    column-gap: 16px;
-    row-gap: 2px;
+    gap: 16px;
+    overflow: hidden;
   }
 
-  .lcd > .lcd-row:first-of-type { grid-column: 1 / -1; }
-  .lcd > .lcd-row:last-of-type { grid-column: 1; }
-  .lcd-file { grid-column: 2; text-align: right; }
+  .lcd > .lcd-row { flex: 0 0 auto; }
+  .lcd-file { flex: 1 1 auto; min-width: 0; text-align: left; }
 
   .transport-row { grid-area: trans; margin-bottom: 0; }
   .rec-row { grid-area: rec; margin: 0; }
