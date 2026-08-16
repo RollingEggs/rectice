@@ -83,7 +83,6 @@
     offsetReadout: document.getElementById("offsetReadout"),
     balanceSlider: document.getElementById("balanceSlider"),
     panSlider: document.getElementById("panSlider"),
-    statusMsg: document.getElementById("statusMsg"),
   };
 
   const ICON_PLAY = '<path d="M7 5L19 12L7 19V5Z" fill="currentColor"/>';
@@ -1714,14 +1713,8 @@
       }
     }
 
-    setStatus(msg, clearAfterMs) {
-      el.statusMsg.textContent = msg;
-      clearTimeout(this.statusTimer);
-      if (clearAfterMs) {
-        this.statusTimer = setTimeout(() => {
-          if (el.statusMsg.textContent === msg) el.statusMsg.textContent = "";
-        }, clearAfterMs);
-      }
+    setStatus() {
+      // Status messages are no longer displayed anywhere in the UI.
     }
   }
 

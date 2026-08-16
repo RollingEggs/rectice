@@ -24,7 +24,7 @@
 /* No iOS selection callout ("コピー / 検索 / 翻訳") on long press, and
    manipulation drops the double-tap-to-zoom gesture. */
 html, body, .app, .btn, button, .lcd, .lcd-main, .lcd-sub, .slider-labels,
-.offset-readout, .status {
+.offset-readout {
   -webkit-touch-callout: none;
   -webkit-user-select: none;
   -moz-user-select: none;
@@ -926,14 +926,6 @@ body {
   font-size: 13px;
 }
 
-.status {
-  min-height: 16px;
-  text-align: center;
-  font-size: 12px;
-  color: var(--cream-dim);
-  margin: 10px 0 0;
-}
-
 @media (max-width: 400px) {
   .modal { padding: 20px 14px; }
   .modal-row { grid-template-columns: 42px 36px 1fr 36px; gap: 7px; }
@@ -983,8 +975,7 @@ body {
       "lcd    lcd"
       "trans  mixer"
       "rec    mixer"
-      "mix    mixer"
-      "status status";
+      "mix    mixer";
     column-gap: 14px;
     row-gap: 5px;
     align-items: start;
@@ -1013,7 +1004,6 @@ body {
   .rec-row { grid-area: rec; margin: 0; }
   .marker-row-mix { grid-area: mix; margin-bottom: 0; }
   .mixer { grid-area: mixer; gap: 10px; padding: 10px 16px; }
-  .status { grid-area: status; margin-top: 2px; min-height: 0; font-size: 11px; }
 
   /* The LCD collapsing to a single row frees up vertical room in the left
      column. Scale transport, REC, and the markers up together (same ~1.33x
