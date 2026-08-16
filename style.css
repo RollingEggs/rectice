@@ -1019,7 +1019,7 @@ body {
      left column, spent here on taller transport buttons rather than left
      as empty space. */
   .lcd-main { font-size: 32px; }
-  .btn-transport { height: 78px; }
+  .btn-transport { height: 150px; }
   .rec-wrap { width: 86px; height: 86px; }
   .rec-btn-inner { width: 56px; height: 56px; }
   .btn-marker { font-size: 16px; }
