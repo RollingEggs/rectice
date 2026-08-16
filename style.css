@@ -970,39 +970,60 @@ body {
  */
 @media (orientation: landscape) and (max-height: 500px) {
   body {
-    padding: 8px 12px;
+    padding: 4px 6px;
     align-items: center;
   }
 
   .app {
-    max-width: 700px;
-    padding: 12px 16px;
+    max-width: 760px;
+    padding: 6px 10px;
     display: grid;
     grid-template-columns: 1fr 1fr;
     grid-template-areas:
-      "lcd    mixer"
+      "lcd    lcd"
       "trans  mixer"
       "rec    mixer"
       "mix    mixer"
       "status status";
-    column-gap: 18px;
-    row-gap: 8px;
+    column-gap: 14px;
+    row-gap: 5px;
     align-items: start;
   }
 
-  .lcd { grid-area: lcd; margin-bottom: 0; padding: 10px 14px; gap: 4px; }
+  /* LCD now spans the full width, so the time+meter row and the
+     markers/paw/filename row (previously 3 stacked lines: time, markers,
+     filename) fit as 2 wide rows instead — the markers and filename share
+     a row side by side rather than each needing a line of their own. */
+  .lcd {
+    grid-area: lcd;
+    margin-bottom: 0;
+    padding: 8px 16px;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    align-items: center;
+    column-gap: 16px;
+    row-gap: 2px;
+  }
+
+  .lcd > .lcd-row:first-of-type { grid-column: 1 / -1; }
+  .lcd > .lcd-row:last-of-type { grid-column: 1; }
+  .lcd-file { grid-column: 2; text-align: right; }
+
   .transport-row { grid-area: trans; margin-bottom: 0; }
   .rec-row { grid-area: rec; margin: 0; }
   .marker-row-mix { grid-area: mix; margin-bottom: 0; }
-  .mixer { grid-area: mixer; gap: 12px; padding: 14px 18px; }
-  .status { grid-area: status; margin-top: 4px; min-height: 0; }
+  .mixer { grid-area: mixer; gap: 10px; padding: 10px 16px; }
+  .status { grid-area: status; margin-top: 2px; min-height: 0; font-size: 11px; }
 
-  .lcd-main { font-size: 26px; }
-  .btn-transport { height: 46px; }
+  /* The LCD collapsing to 2 rows (from 3) frees up vertical room in the
+     left column, spent here on taller transport buttons rather than left
+     as empty space. */
+  .lcd-main { font-size: 32px; }
+  .btn-transport { height: 78px; }
   .rec-wrap { width: 86px; height: 86px; }
   .rec-btn-inner { width: 56px; height: 56px; }
   .btn-marker { font-size: 16px; }
-  .btn-toggle-compact { height: 46px; font-size: 10px; }
-  .btn-small { height: 46px; }
+  .btn-toggle-compact { height: 44px; font-size: 10px; }
+  .btn-small { height: 44px; }
   .slider-block { gap: 5px; }
 }
