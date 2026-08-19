@@ -13,6 +13,7 @@
   const METER_PEAK_HOLD_MS = 900;
   const OFFSET_STEP = 0.005; // 5ms per press
   const OFFSET_LIMIT = 1.0; // clamp track 2 shifting to +/- 1 second
+  const TRACK2_VOLUME_MAX = 1.5; // recorded track can be boosted 50% past unity
   const COUNT_START_STEP = 0.001; // 1ms per press
   const COUNT_START_LIMIT = 300; // count can begin up to 5:00 either side of the head
   const BPM_MIN = 40;
@@ -82,6 +83,7 @@
     offsetPlusBtn: document.getElementById("offsetPlusBtn"),
     offsetReadout: document.getElementById("offsetReadout"),
     musicVolumeSlider: document.getElementById("musicVolumeSlider"),
+    track2VolumeSlider: document.getElementById("track2VolumeSlider"),
   };
 
   const ICON_PLAY = '<path d="M7 5L19 12L7 19V5Z" fill="currentColor"/>';
@@ -127,6 +129,7 @@
       this.inputDevices = [];
       this.track2Gain = null;
       this.track2Muted = false; // the recorded track plays back by default
+      this.track2Volume = 1;
 
       this.countInEnabled = false;
       this.countInBpm = 120;
@@ -186,6 +189,9 @@
       if (!saved || typeof saved !== "object") return;
 
       if (typeof saved.musicVolume === "number") this.musicVolume = clamp(saved.musicVolume, 0, 1);
+      if (typeof saved.track2Volume === "number") {
+        this.track2Volume = clamp(saved.track2Volume, 0, TRACK2_VOLUME_MAX);
+      }
       if (typeof saved.track2Offset === "number") {
         this.track2Offset = clamp(saved.track2Offset, -OFFSET_LIMIT, OFFSET_LIMIT);
       }
@@ -205,9 +211,10 @@
       if (typeof saved.markerA === "number") this._pendingMarkerA = saved.markerA;
       if (typeof saved.markerB === "number") this._pendingMarkerB = saved.markerB;
 
-      // The slider's DOM value has to be set explicitly — unlike the toggle
-      // buttons, it isn't redrawn from state by render().
+      // The sliders' DOM value has to be set explicitly — unlike the toggle
+      // buttons, they aren't redrawn from state by render().
       el.musicVolumeSlider.value = String(this.musicVolume);
+      el.track2VolumeSlider.value = String(this.track2Volume);
     }
 
     persistSettings() {
@@ -216,6 +223,7 @@
           SETTINGS_STORAGE_KEY,
           JSON.stringify({
             musicVolume: this.musicVolume,
+            track2Volume: this.track2Volume,
             track2Offset: this.track2Offset,
             track2Muted: this.track2Muted,
             monitorMuted: this.monitorMuted,
@@ -245,7 +253,7 @@
         // Recorded playback gets its own gain so muting it leaves the input
         // monitor, which shares guitarGain, still audible.
         this.track2Gain = this.audioCtx.createGain();
-        this.track2Gain.gain.value = this.track2Muted ? 0 : 1;
+        this.track2Gain.gain.value = this.track2Muted ? 0 : this.track2Volume;
         this.track2Gain.connect(this.guitarGain);
 
         this.guitarGain.connect(this.audioCtx.destination);
@@ -345,6 +353,11 @@
       el.musicVolumeSlider.addEventListener("input", () => {
         this.musicVolume = parseFloat(el.musicVolumeSlider.value);
         this.applyMusicVolume();
+        this.persistSettings();
+      });
+      el.track2VolumeSlider.addEventListener("input", () => {
+        this.track2Volume = parseFloat(el.track2VolumeSlider.value);
+        this.applyTrack2Gain();
         this.persistSettings();
       });
     }
@@ -643,6 +656,7 @@
         el.loopABBtn,
         el.track2MuteBtn, // there's no track 2 to mute until a file loads
         el.musicVolumeSlider,
+        el.track2VolumeSlider,
         el.countInBtn,
         el.monitorBtn,
       ].forEach((b) => (b.disabled = !ready));
@@ -1264,7 +1278,7 @@
     /** Silences playback of the recorded track without affecting the monitor. */
     toggleTrack2Mute() {
       this.track2Muted = !this.track2Muted;
-      this.applyTrack2Mute();
+      this.applyTrack2Gain();
       this.setStatus(
         this.track2Muted ? "録音トラックをミュートしました" : "録音トラックのミュートを解除しました",
         2000
@@ -1273,10 +1287,10 @@
       this.render();
     }
 
-    applyTrack2Mute() {
+    applyTrack2Gain() {
       if (!this.track2Gain) return;
       this.track2Gain.gain.setTargetAtTime(
-        this.track2Muted ? 0 : 1,
+        this.track2Muted ? 0 : this.track2Volume,
         this.audioCtx.currentTime,
         0.01
       );
