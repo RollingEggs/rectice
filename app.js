@@ -81,8 +81,7 @@
     offsetMinusBtn: document.getElementById("offsetMinusBtn"),
     offsetPlusBtn: document.getElementById("offsetPlusBtn"),
     offsetReadout: document.getElementById("offsetReadout"),
-    balanceSlider: document.getElementById("balanceSlider"),
-    panSlider: document.getElementById("panSlider"),
+    musicVolumeSlider: document.getElementById("musicVolumeSlider"),
   };
 
   const ICON_PLAY = '<path d="M7 5L19 12L7 19V5Z" fill="currentColor"/>';
@@ -142,10 +141,8 @@
 
       this.musicGain = null;
       this.guitarGain = null;
-      this.guitarPanner = null;
 
-      this.balance = 0;
-      this.pan = 0;
+      this.musicVolume = 1;
 
       this.rafId = null;
       this.scrubTimer = null;
@@ -188,8 +185,7 @@
       }
       if (!saved || typeof saved !== "object") return;
 
-      if (typeof saved.balance === "number") this.balance = clamp(saved.balance, -1, 1);
-      if (typeof saved.pan === "number") this.pan = clamp(saved.pan, -1, 1);
+      if (typeof saved.musicVolume === "number") this.musicVolume = clamp(saved.musicVolume, 0, 1);
       if (typeof saved.track2Offset === "number") {
         this.track2Offset = clamp(saved.track2Offset, -OFFSET_LIMIT, OFFSET_LIMIT);
       }
@@ -209,10 +205,9 @@
       if (typeof saved.markerA === "number") this._pendingMarkerA = saved.markerA;
       if (typeof saved.markerB === "number") this._pendingMarkerB = saved.markerB;
 
-      // The sliders' DOM value has to be set explicitly — unlike the toggle
-      // buttons, they aren't redrawn from state by render().
-      el.balanceSlider.value = String(this.balance);
-      el.panSlider.value = String(this.pan);
+      // The slider's DOM value has to be set explicitly — unlike the toggle
+      // buttons, it isn't redrawn from state by render().
+      el.musicVolumeSlider.value = String(this.musicVolume);
     }
 
     persistSettings() {
@@ -220,8 +215,7 @@
         localStorage.setItem(
           SETTINGS_STORAGE_KEY,
           JSON.stringify({
-            balance: this.balance,
-            pan: this.pan,
+            musicVolume: this.musicVolume,
             track2Offset: this.track2Offset,
             track2Muted: this.track2Muted,
             monitorMuted: this.monitorMuted,
@@ -246,7 +240,6 @@
         this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         this.musicGain = this.audioCtx.createGain();
         this.guitarGain = this.audioCtx.createGain();
-        this.guitarPanner = this.audioCtx.createStereoPanner();
 
         this.musicGain.connect(this.audioCtx.destination);
         // Recorded playback gets its own gain so muting it leaves the input
@@ -255,11 +248,9 @@
         this.track2Gain.gain.value = this.track2Muted ? 0 : 1;
         this.track2Gain.connect(this.guitarGain);
 
-        this.guitarGain.connect(this.guitarPanner);
-        this.guitarPanner.connect(this.audioCtx.destination);
+        this.guitarGain.connect(this.audioCtx.destination);
 
-        this.applyBalance();
-        this.applyPan();
+        this.applyMusicVolume();
       }
       if (this.audioCtx.state === "suspended") {
         this.audioCtx.resume();
@@ -351,14 +342,9 @@
       this.bindRepeat(el.offsetPlusBtn, () => this.nudgeTrack2(1));
       el.loopABBtn.addEventListener("click", () => this.toggleLoopAB());
 
-      el.balanceSlider.addEventListener("input", () => {
-        this.balance = parseFloat(el.balanceSlider.value);
-        this.applyBalance();
-        this.persistSettings();
-      });
-      el.panSlider.addEventListener("input", () => {
-        this.pan = parseFloat(el.panSlider.value);
-        this.applyPan();
+      el.musicVolumeSlider.addEventListener("input", () => {
+        this.musicVolume = parseFloat(el.musicVolumeSlider.value);
+        this.applyMusicVolume();
         this.persistSettings();
       });
     }
@@ -656,8 +642,7 @@
         el.markerBBtn,
         el.loopABBtn,
         el.track2MuteBtn, // there's no track 2 to mute until a file loads
-        el.balanceSlider,
-        el.panSlider,
+        el.musicVolumeSlider,
         el.countInBtn,
         el.monitorBtn,
       ].forEach((b) => (b.disabled = !ready));
@@ -1646,18 +1631,9 @@
 
     // ---------- mix controls ----------
 
-    applyBalance() {
+    applyMusicVolume() {
       if (!this.musicGain) return;
-      const t = (this.balance + 1) / 2; // 0..1
-      const musicVol = Math.cos((t * Math.PI) / 2);
-      const guitarVol = Math.sin((t * Math.PI) / 2);
-      this.musicGain.gain.value = musicVol;
-      this.guitarGain.gain.value = guitarVol;
-    }
-
-    applyPan() {
-      if (!this.guitarPanner) return;
-      this.guitarPanner.pan.value = this.pan;
+      this.musicGain.gain.value = this.musicVolume;
     }
 
     // ---------- rendering ----------
