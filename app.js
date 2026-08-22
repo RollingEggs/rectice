@@ -11,8 +11,6 @@
   const METER_CLIP_FROM = 12; // ...and from here up, red
   const METER_FLOOR_DB = -48; // bottom of the meter's range
   const METER_PEAK_HOLD_MS = 900;
-  const OFFSET_STEP = 0.005; // 5ms per press
-  const OFFSET_LIMIT = 1.0; // clamp track 2 shifting to +/- 1 second
   const TRACK2_VOLUME_MAX = 1.5; // recorded track can be boosted 50% past unity
   const COUNT_START_STEP = 0.001; // 1ms per press
   const COUNT_START_LIMIT = 300; // count can begin up to 5:00 either side of the head
@@ -72,19 +70,19 @@
     countStartPlusBtn: document.getElementById("countStartPlusBtn"),
     countInPreviewBtn: document.getElementById("countInPreviewBtn"),
     countInCloseBtn: document.getElementById("countInCloseBtn"),
-    track2MuteBtn: document.getElementById("track2MuteBtn"),
+    playbackBtn: document.getElementById("playbackBtn"),
     monitorBtn: document.getElementById("monitorBtn"),
     deviceModal: document.getElementById("deviceModal"),
     deviceList: document.getElementById("deviceList"),
     deviceHint: document.getElementById("deviceHint"),
     deviceRefreshBtn: document.getElementById("deviceRefreshBtn"),
     deviceCloseBtn: document.getElementById("deviceCloseBtn"),
-    offsetMinusBtn: document.getElementById("offsetMinusBtn"),
-    offsetPlusBtn: document.getElementById("offsetPlusBtn"),
-    offsetReadout: document.getElementById("offsetReadout"),
     musicVolumeSlider: document.getElementById("musicVolumeSlider"),
     track2VolumeSlider: document.getElementById("track2VolumeSlider"),
   };
+
+  const PLAY_MODE_MUSIC = "music"; // the transport row's PLAY: music only
+  const PLAY_MODE_REC = "rec"; // the PLAYBACK button: the recorded track only
 
   const ICON_PLAY = '<path d="M7 5L19 12L7 19V5Z" fill="currentColor"/>';
   const ICON_PAUSE =
@@ -103,7 +101,9 @@
       this.isPlaying = false;
       this.isRecording = false;
       this.isArmed = false; // REC pressed while stopped, waiting on PLAY
-      this.track2Offset = 0; // seconds the recorded track is shifted by
+      // Which track the transport rolls. The two never sound together: PLAY
+      // is the music, PLAYBACK is the take.
+      this.playMode = PLAY_MODE_MUSIC;
       this.scrubDirection = 0; // -1 rewind, +1 fast-forward, 0 idle
       this.scrubStage = 0; // 1..4, drives speed and colour
       this.scrubRaf = null;
@@ -128,7 +128,6 @@
       this.inputDeviceLabel = "システム既定";
       this.inputDevices = [];
       this.track2Gain = null;
-      this.track2Muted = false; // the recorded track plays back by default
       this.track2Volume = 1;
 
       this.countInEnabled = false;
@@ -192,10 +191,6 @@
       if (typeof saved.track2Volume === "number") {
         this.track2Volume = clamp(saved.track2Volume, 0, TRACK2_VOLUME_MAX);
       }
-      if (typeof saved.track2Offset === "number") {
-        this.track2Offset = clamp(saved.track2Offset, -OFFSET_LIMIT, OFFSET_LIMIT);
-      }
-      if (typeof saved.track2Muted === "boolean") this.track2Muted = saved.track2Muted;
       if (typeof saved.monitorMuted === "boolean") this.monitorMuted = saved.monitorMuted;
       if (typeof saved.countInEnabled === "boolean") this.countInEnabled = saved.countInEnabled;
       if (typeof saved.countInBpm === "number") this.countInBpm = clamp(saved.countInBpm, BPM_MIN, BPM_MAX);
@@ -224,8 +219,6 @@
           JSON.stringify({
             musicVolume: this.musicVolume,
             track2Volume: this.track2Volume,
-            track2Offset: this.track2Offset,
-            track2Muted: this.track2Muted,
             monitorMuted: this.monitorMuted,
             countInEnabled: this.countInEnabled,
             countInBpm: this.countInBpm,
@@ -250,10 +243,10 @@
         this.guitarGain = this.audioCtx.createGain();
 
         this.musicGain.connect(this.audioCtx.destination);
-        // Recorded playback gets its own gain so muting it leaves the input
-        // monitor, which shares guitarGain, still audible.
+        // Recorded playback gets its own gain so its volume slider leaves the
+        // input monitor, which shares guitarGain, alone.
         this.track2Gain = this.audioCtx.createGain();
-        this.track2Gain.gain.value = this.track2Muted ? 0 : this.track2Volume;
+        this.track2Gain.gain.value = this.track2Volume;
         this.track2Gain.connect(this.guitarGain);
 
         this.guitarGain.connect(this.audioCtx.destination);
@@ -277,6 +270,7 @@
       el.fileInput.addEventListener("change", (e) => this.onFileSelected(e));
 
       el.playBtn.addEventListener("click", () => this.togglePlayWithCountIn());
+      el.playbackBtn.addEventListener("click", () => this.toggleRecPlayback());
 
       this.bindTapHold(el.countInBtn, {
         onTap: () => this.toggleCountIn(),
@@ -344,10 +338,6 @@
           if (!el.deviceModal.hidden) this.refreshDeviceList();
         });
       }
-      el.track2MuteBtn.addEventListener("click", () => this.toggleTrack2Mute());
-
-      this.bindRepeat(el.offsetMinusBtn, () => this.nudgeTrack2(-1));
-      this.bindRepeat(el.offsetPlusBtn, () => this.nudgeTrack2(1));
       el.loopABBtn.addEventListener("click", () => this.toggleLoopAB());
 
       el.musicVolumeSlider.addEventListener("input", () => {
@@ -452,11 +442,10 @@
         const decoded = await this.decodeMediaFile(file);
 
         this.applyDecodedTrack(decoded, file.name);
-        // A freshly picked file starts clean — any markers/offset saved
-        // belonged to whatever was loaded before.
+        // A freshly picked file starts clean — any markers saved belonged to
+        // whatever was loaded before.
         this.markerA = null;
         this.markerB = null;
-        this.track2Offset = 0;
         this.persistSettings();
         this.render();
         this.setStatus("");
@@ -476,9 +465,9 @@
 
     /**
      * Shared setup for a successfully decoded track, used by both a fresh
-     * file pick and restoring the one saved from last time. Markers and
-     * track 2 timing are deliberately left to the caller — a fresh pick
-     * clears them, a restore re-applies what was saved.
+     * file pick and restoring the one saved from last time. Markers are
+     * deliberately left to the caller — a fresh pick clears them, a restore
+     * re-applies what was saved.
      */
     applyDecodedTrack(decoded, fileName) {
       const ctx = this.ensureAudioCtx();
@@ -654,7 +643,7 @@
         el.markerABtn,
         el.markerBBtn,
         el.loopABBtn,
-        el.track2MuteBtn, // there's no track 2 to mute until a file loads
+        el.playbackBtn, // there's no timeline to play a take against until a file loads
         el.musicVolumeSlider,
         el.track2VolumeSlider,
         el.countInBtn,
@@ -735,10 +724,8 @@
     }
 
     /**
-     * Starts the recorded track shifted by track2Offset: a positive offset
-     * plays it later, a negative one earlier, which is what compensates for
-     * recording latency. Reading before the start of the take means waiting
-     * that long before rolling it instead.
+     * Rolls the recorded take against the same timeline as the music, so a
+     * stretch of tape that was never recorded over simply plays silence.
      */
     startTrack2Source(offset) {
       const ctx = this.audioCtx;
@@ -746,22 +733,8 @@
       src.buffer = this.track2Buffer;
       src.connect(this.track2Gain);
 
-      if (!this.startSourceAt(src, offset - this.track2Offset)) return;
+      if (!this.startSourceAt(src, offset)) return;
       this.track2Source = src;
-    }
-
-    nudgeTrack2(direction) {
-      if (!this.track2Buffer) return;
-      const next = this.track2Offset + direction * OFFSET_STEP;
-      this.track2Offset = Math.max(-OFFSET_LIMIT, Math.min(OFFSET_LIMIT, next));
-
-      // Re-cue so the new alignment is audible straight away.
-      if (this.isPlaying && !this.isRecording) {
-        this.stopTrack2Playback();
-        this.startTrack2Source(this.getPlayhead());
-      }
-      this.persistSettings();
-      this.render();
     }
 
     stopSources() {
@@ -779,6 +752,11 @@
 
     // ---------- transport controls ----------
 
+    /**
+     * Rolls whichever single track playMode names: the music for PLAY, the
+     * recorded take for PLAYBACK. Recording only ever happens against the
+     * music, so an armed take punches in from music mode alone.
+     */
     play(fromSeconds = null) {
       if (!this.track1Buffer) return;
       const ctx = this.ensureAudioCtx();
@@ -786,8 +764,10 @@
       this.stopScrub();
       this.stopSources();
 
+      const recMode = this.playMode === PLAY_MODE_REC;
+
       // PLAY is what actually rolls tape on an armed recording.
-      if (this.isArmed) {
+      if (this.isArmed && !recMode) {
         this.isArmed = false;
         this.isRecording = true;
       }
@@ -800,31 +780,66 @@
       this.contextStartTime = ctx.currentTime;
       this.isPlaying = true;
 
-      this.startTrack1Source(this.startOffset);
-      // While recording, track 2 stays silent — it is being overwritten.
-      if (!this.isRecording) {
+      if (recMode) {
         this.startTrack2Source(this.startOffset);
+      } else {
+        this.startTrack1Source(this.startOffset);
       }
 
       this.startClock();
       this.updatePlayIcon();
     }
 
-    /** PLAY leads in with the count when it is switched on. */
+    /** PLAY rolls the music alone, leading in with the count when it is on. */
     togglePlayWithCountIn() {
-      if (this.isPlaying) {
+      if (this.isPlaying && this.playMode === PLAY_MODE_MUSIC) {
         this.pause();
         return;
       }
-      if (!this.track1Buffer || !this.countInEnabled) {
-        this.play();
+      // Rolling in the other mode: switch tracks from where the tape is now,
+      // without a count-in — the tape never stopped for one.
+      if (this.isPlaying) {
+        const at = this.getPlayhead();
+        this.playMode = PLAY_MODE_MUSIC;
+        this.play(at);
+        this.render();
         return;
       }
 
-      const ctx = this.ensureAudioCtx();
+      this.playMode = PLAY_MODE_MUSIC;
+      if (!this.track1Buffer || !this.countInEnabled) {
+        this.play();
+        this.render();
+        return;
+      }
+
+      this.ensureAudioCtx();
       this.cancelCountIn();
       this.play(this.countInStart);
       this.scheduleCountIn(this.contextStartTime, this.startOffset);
+      this.render();
+    }
+
+    /**
+     * PLAYBACK rolls the recorded take alone. No count-in and no punching in:
+     * this is for listening back, so nothing but the take is heard, and an
+     * armed REC is stood down rather than being triggered by it.
+     */
+    toggleRecPlayback() {
+      if (!this.track1Buffer) return;
+
+      if (this.isPlaying && this.playMode === PLAY_MODE_REC) {
+        this.pause();
+        return;
+      }
+
+      const at = this.isPlaying ? this.getPlayhead() : null;
+      this.cancelCountIn();
+      this.disengageRecording();
+      this.isArmed = false;
+      this.playMode = PLAY_MODE_REC;
+      this.play(at);
+      this.render();
     }
 
     pause() {
@@ -836,6 +851,9 @@
       this.isArmed = false;
       this.stopSources();
       this.isPlaying = false;
+      // Back to the default track, so a later marker or scrub resume rolls
+      // the music unless PLAYBACK is asked for again.
+      this.playMode = PLAY_MODE_MUSIC;
       this.stopClock();
       this.updatePlayIcon();
       this.render();
@@ -936,6 +954,7 @@
       this.disengageRecording();
       this.isArmed = false;
       this.isPlaying = false;
+      this.playMode = PLAY_MODE_MUSIC;
       this.playhead = 0;
       this.updatePlayIcon();
     }
@@ -1015,8 +1034,14 @@
       }
 
       if (this.isPlaying) {
+        // Takes are always cut against the music, so punching in during a
+        // PLAYBACK swaps the take out for the backing track first.
+        if (this.playMode === PLAY_MODE_REC) {
+          const at = this.getPlayhead();
+          this.playMode = PLAY_MODE_MUSIC;
+          this.play(at);
+        }
         this.isRecording = true;
-        this.stopTrack2Playback();
       } else {
         this.isArmed = true;
         this.setStatus("録音待機中 - 再生ボタンでスタート");
@@ -1275,25 +1300,9 @@
       );
     }
 
-    /** Silences playback of the recorded track without affecting the monitor. */
-    toggleTrack2Mute() {
-      this.track2Muted = !this.track2Muted;
-      this.applyTrack2Gain();
-      this.setStatus(
-        this.track2Muted ? "録音トラックをミュートしました" : "録音トラックのミュートを解除しました",
-        2000
-      );
-      this.persistSettings();
-      this.render();
-    }
-
     applyTrack2Gain() {
       if (!this.track2Gain) return;
-      this.track2Gain.gain.setTargetAtTime(
-        this.track2Muted ? 0 : this.track2Volume,
-        this.audioCtx.currentTime,
-        0.01
-      );
+      this.track2Gain.gain.setTargetAtTime(this.track2Volume, this.audioCtx.currentTime, 0.01);
     }
 
     stopTrack2Playback() {
@@ -1312,8 +1321,8 @@
       this.track2Data.fill(0);
       this.track2HasData = false;
 
-      // The playing source still references the pre-erase audio, so restart it.
-      if (this.isPlaying) {
+      // A playing source still references the pre-erase audio, so restart it.
+      if (this.isPlaying && this.playMode === PLAY_MODE_REC) {
         this.stopTrack2Playback();
         this.startTrack2Source(this.getPlayhead());
       }
@@ -1331,12 +1340,12 @@
       this.rippleTimer = setTimeout(() => el.recWrap.classList.remove("erasing"), RIPPLE_MS);
     }
 
+    /**
+     * Punches out. Nothing is re-cued: the take is only ever heard through
+     * PLAYBACK, so the music carries on alone.
+     */
     disengageRecording() {
-      if (!this.isRecording) return;
       this.isRecording = false;
-      if (this.isPlaying) {
-        this.startTrack2Source(this.getPlayhead());
-      }
     }
 
     // ---------- count in ----------
@@ -1427,6 +1436,7 @@
       this.previewResumeAt = this.playhead;
       this.previewWasArmed = this.isArmed;
       this.isArmed = false; // a preview must never punch in
+      this.playMode = PLAY_MODE_MUSIC; // the count is lined up against the music
 
       this.play(this.countInStart);
       this.scheduleCountIn(this.contextStartTime, this.startOffset);
@@ -1652,8 +1662,10 @@
 
     // ---------- rendering ----------
 
+    /** Only the music transport shows PAUSE; a PLAYBACK is stopped from its own button. */
     updatePlayIcon() {
-      el.playIcon.innerHTML = this.isPlaying ? ICON_PAUSE : ICON_PLAY;
+      const musicRolling = this.isPlaying && this.playMode === PLAY_MODE_MUSIC;
+      el.playIcon.innerHTML = musicRolling ? ICON_PAUSE : ICON_PLAY;
     }
 
     render() {
@@ -1683,17 +1695,9 @@
       this.renderScrubStage(el.rewindBtn, -1);
       this.renderScrubStage(el.ffBtn, 1);
 
-      // "on" now means the mute itself is engaged — the button lights up
-      // when it's actively muting, not when audio is passing through.
-      el.track2MuteBtn.classList.toggle("on", this.track2Muted);
+      el.playbackBtn.classList.toggle("on", this.isPlaying && this.playMode === PLAY_MODE_REC);
 
       el.monitorBtn.classList.toggle("on", !this.monitorMuted);
-
-      const ms = Math.round(this.track2Offset * 1000);
-      el.offsetReadout.textContent = (ms > 0 ? "+" : "") + ms + " ms";
-      el.offsetReadout.classList.toggle("zero", ms === 0);
-      el.offsetMinusBtn.disabled = !this.track2Buffer;
-      el.offsetPlusBtn.disabled = !this.track2Buffer;
     }
 
     renderScrubStage(button, direction) {

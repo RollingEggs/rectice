@@ -23,8 +23,7 @@
 
 /* No iOS selection callout ("コピー / 検索 / 翻訳") on long press, and
    manipulation drops the double-tap-to-zoom gesture. */
-html, body, .app, .btn, button, .lcd, .lcd-main, .lcd-sub, .slider-labels,
-.offset-readout {
+html, body, .app, .btn, button, .lcd, .lcd-main, .lcd-sub, .slider-labels {
   -webkit-touch-callout: none;
   -webkit-user-select: none;
   -moz-user-select: none;
@@ -425,9 +424,10 @@ body {
   margin-bottom: 12px;
 }
 
-/* REC TRACK and COUNT IN split what REC TRACK used to occupy. */
+/* PLAYBACK takes the wide column, with COUNT IN and A⇄B sharing the rest
+   at equal width. */
 .marker-row-mix {
-  grid-template-columns: 1fr 1fr 2fr;
+  grid-template-columns: 2fr 1fr 1fr;
   margin-bottom: 22px;
 }
 
@@ -497,30 +497,6 @@ body {
   gap: 10px;
 }
 
-/* PAN and TRACK 2 TIMING give up some height to grow the LCD's third
-   line — BALANCE stays full size since it's the one most reached for. */
-.slider-block-compact {
-  gap: 6px;
-}
-
-.slider-block-compact .slider {
-  height: 16px;
-}
-
-.slider-block-compact .slider::-webkit-slider-thumb {
-  height: 18px;
-  margin-top: -8px;
-}
-
-.slider-block-compact .slider::-moz-range-thumb {
-  height: 18px;
-}
-
-.slider-block-compact .offset-row .btn-offset {
-  height: 36px;
-  font-size: 19px;
-}
-
 .slider-labels {
   display: flex;
   justify-content: space-between;
@@ -541,13 +517,6 @@ body {
   color: var(--cream-dim);
 }
 
-.offset-row {
-  display: grid;
-  grid-template-columns: 1fr 1.4fr 1fr;
-  gap: 12px;
-  align-items: center;
-}
-
 .btn-offset {
   height: 48px;
   font-size: 24px;
@@ -556,24 +525,12 @@ body {
   color: var(--cream);
 }
 
-.offset-readout {
-  font-family: "SF Mono", "DejaVu Sans Mono", Menlo, Consolas, monospace;
-  font-size: 16px;
-  text-align: center;
-  color: var(--teal);
-}
-
-.offset-readout.zero {
-  color: var(--cream-dim);
-}
-
-/* Shared by the input-monitor and recorded-track toggles. */
 /*
  * Off/inactive is one flat, unlit look shared by all three toggles — same
  * treatment whether the toggle itself is off or the button is genuinely
  * disabled pre-load, so there's no visual difference to explain. On is a
  * solid colour fill per button instead of a shared accent: each one glows
- * a different colour so REC TRACK MUTE / COUNT IN / INPUT MONITOR read at
+ * a different colour so PLAYBACK / COUNT IN / INPUT MONITOR read at
  * a glance without a separate ON/OFF text label.
  */
 .btn-toggle {
@@ -590,7 +547,7 @@ body {
   transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
 }
 
-/* Narrow enough that REC TRACK MUTE wraps onto a second line. */
+/* Narrow enough that COUNT IN wraps onto a second line. */
 .btn-toggle-compact {
   height: 72px;
   padding: 0 8px;
@@ -599,7 +556,8 @@ body {
   letter-spacing: 0.5px;
 }
 
-.btn-toggle-mute.on {
+/* Lit while the recorded track alone is rolling. */
+.btn-toggle-playback.on {
   color: #2a2108;
   background: linear-gradient(160deg, #ecd35e, #cc9f2c);
   box-shadow: 0 3px 0 var(--btn-shadow), 0 0 16px rgba(230, 190, 60, 0.55);

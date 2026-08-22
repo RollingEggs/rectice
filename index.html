@@ -67,7 +67,7 @@
   </div>
 
   <div class="marker-row marker-row-mix">
-    <button class="btn btn-toggle btn-toggle-compact btn-toggle-mute" id="track2MuteBtn" aria-label="録音トラックのミュート切り替え">REC TRACK MUTE</button>
+    <button class="btn btn-toggle btn-toggle-compact btn-toggle-playback" id="playbackBtn" aria-label="録音データだけを再生">PLAYBACK</button>
     <button class="btn btn-toggle btn-toggle-compact btn-toggle-countin" id="countInBtn" aria-label="カウントイン（長押しで設定）">COUNT IN</button>
     <button class="btn btn-small" id="loopABBtn">A&#8644;B</button>
   </div>
@@ -89,19 +89,6 @@
         <span class="label-right">MAX</span>
       </div>
       <input type="range" id="track2VolumeSlider" class="slider" min="0" max="1.5" step="0.01" value="1" />
-    </div>
-
-    <div class="slider-block slider-block-compact">
-      <div class="slider-labels">
-        <span class="label-left">TRACK 2</span>
-        <span class="label-center">TIMING</span>
-        <span class="label-right">5ms STEP</span>
-      </div>
-      <div class="offset-row">
-        <button class="btn btn-offset" id="offsetMinusBtn" aria-label="トラック2を5ms早める">−</button>
-        <span class="offset-readout" id="offsetReadout">0 ms</span>
-        <button class="btn btn-offset" id="offsetPlusBtn" aria-label="トラック2を5ms遅らせる">+</button>
-      </div>
     </div>
 
     <div class="monitor-row">
